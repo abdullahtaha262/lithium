@@ -1,0 +1,2488 @@
+{% extends "_base.html" %}
+{% load static %}
+
+{% block title %}Kitchen Designer - {{ kitchen.name }}{% endblock %}
+
+{% block css %}
+{{ block.super }}
+<style>
+    .designer-full-width {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        background: #eef1f7;
+        min-height: calc(100vh - 56px);
+    }
+    /* Designer Layout */
+    .designer-container {
+        display: flex;
+        height: calc(100vh - 56px); /* Adjust for Bootstrap navbar */
+        overflow: hidden;
+    }
+    
+    /* Toolbar */
+    .designer-toolbar {
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+        border-bottom: 1px solid #dee2e6;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    
+    .toolbar-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .toolbar-btn {
+        padding: 8px 16px;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .toolbar-btn:hover {
+        background: #f8f9fa;
+        border-color: #0d6efd;
+    }
+    
+    .toolbar-btn.active {
+        background: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+    
+    .toolbar-divider {
+        width: 1px;
+        height: 30px;
+        background: #dee2e6;
+        margin: 0 10px;
+    }
+    
+    /* Left Sidebar - Catalog */
+    .catalog-sidebar {
+        width: clamp(260px, 18vw, 340px);
+        background: #f8f9fa;
+        border-right: 2px solid #dee2e6;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .catalog-header {
+        padding: 16px;
+        background: #fff;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .catalog-search {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+    
+    .catalog-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .filter-btn {
+        padding: 4px 12px;
+        font-size: 0.85rem;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .filter-btn:hover {
+        background: #e9ecef;
+    }
+    
+    .filter-btn.active {
+        background: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+    
+    .catalog-items {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+    }
+    
+    .catalog-item {
+        background: #fff;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+        cursor: grab;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    
+    .catalog-item:hover {
+        border-color: #0366d6;
+        box-shadow: 0 3px 12px rgba(3, 102, 214, 0.15);
+        transform: translateY(-1px);
+    }
+    
+    .catalog-item:active {
+        cursor: grabbing;
+        transform: scale(0.98);
+    }
+    
+    .catalog-item-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .catalog-item-thumbnail {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 4px;
+        background: #e9ecef;
+    }
+    
+    .catalog-item-info h6 {
+        margin: 0 0 4px 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    
+    .catalog-item-info .badge {
+        font-size: 0.75rem;
+    }
+    
+    .catalog-item-dims {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    /* Center Canvas */
+    .canvas-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        position: relative;
+        min-width: 0;
+    }
+    
+    .canvas-controls {
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .canvas-wrapper {
+        flex: 1;
+        overflow: hidden;
+        position: relative;
+        background: #fafbfc;
+        background-image: 
+            linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+            linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    
+    #designerCanvas {
+        display: block;
+    }
+    
+    .canvas-info {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* Right Sidebar - Properties */
+    .properties-sidebar {
+        width: clamp(280px, 20vw, 360px);
+        background: #f8f9fa;
+        border-left: 2px solid #dee2e6;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .designer-settings-panel {
+        padding: 16px;
+        border-bottom: 1px solid #dee2e6;
+        background: #fff;
+    }
+    
+    .designer-settings-panel h6 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #495057;
+    }
+    
+    .settings-toggle {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+    
+    .settings-toggle input[type="checkbox"] {
+        margin-top: 4px;
+    }
+    
+    .settings-toggle label {
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .settings-toggle small {
+        display: block;
+        color: #6c757d;
+        font-size: 0.78rem;
+    }
+    .settings-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+    .settings-field label {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #495057;
+    }
+    .settings-field small {
+        color: #6c757d;
+        font-size: 0.78rem;
+    }
+    .settings-field input {
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 0.9rem;
+        background: #fff;
+    }
+    
+    .properties-header {
+        padding: 16px;
+        background: #fff;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .properties-header h5 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    
+    .properties-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+    }
+    
+    .property-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .property-section h6 {
+        margin: 0 0 12px 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #495057;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .property-group {
+        margin-bottom: 16px;
+    }
+    
+    .property-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .property-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: #495057;
+    }
+    
+    .property-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .property-slider {
+        width: 100%;
+    }
+    
+    .property-value-display {
+        text-align: right;
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 4px;
+    }
+    
+    .rotation-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .rotation-btn {
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    
+    .rotation-btn:hover {
+        background: #e9ecef;
+    }
+    
+    .rotation-btn.active {
+        background: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+    }
+    
+    .action-btn {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-duplicate {
+        background: #6c757d;
+        color: #fff;
+    }
+    
+    .btn-duplicate:hover {
+        background: #5a6268;
+    }
+    
+    .btn-delete {
+        background: #dc3545;
+        color: #fff;
+    }
+    
+    .btn-delete:hover {
+        background: #c82333;
+    }
+    
+    .no-selection {
+        text-align: center;
+        color: #6c757d;
+        padding: 40px 20px;
+        font-size: 0.9rem;
+    }
+    
+    /* Status Indicator */
+    .save-status {
+        font-size: 0.85rem;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .save-status.saved {
+        background: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .save-status.saving {
+        background: #fff3cd;
+        color: #664d03;
+    }
+    
+    .save-status.error {
+        background: #f8d7da;
+        color: #842029;
+    }
+    
+    /* Loading Overlay */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    
+    .loading-overlay.hidden {
+        display: none;
+    }
+    
+    /* Drag feedback */
+    .canvas-wrapper.drag-over {
+        background-color: #e3f2fd;
+        border: 2px dashed #2196f3;
+    }
+    
+    .catalog-item.dragging {
+        opacity: 0.5;
+    }
+    
+    .generate-3d-btn {
+        width: 100%;
+        margin-top: 12px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .catalog-sidebar {
+            width: 260px;
+        }
+        .properties-sidebar {
+            width: 280px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="designer-full-width">
+<!-- Toolbar -->
+<div class="designer-toolbar">
+    <div class="toolbar-group">
+        <button class="toolbar-btn" onclick="history.back()">
+            <i class="bi bi-arrow-left"></i> Back
+        </button>
+        <div class="toolbar-divider"></div>
+        <h5 class="mb-0">{{ kitchen.name }} - Designer</h5>
+    </div>
+    
+    <div class="toolbar-group">
+        <button class="toolbar-btn" id="saveBtn">
+            <i class="bi bi-save"></i> Save
+        </button>
+        <button class="toolbar-btn" id="generate3DToolbarBtn">
+            <i class="bi bi-cpu"></i> Generate 3D
+        </button>
+        <button class="toolbar-btn" id="preview3dBtn" onclick="window.open('{% url 'kitchen:kitchen_visualizer' kitchen.pk %}', '_blank')">
+            <i class="bi bi-box"></i> 3D View
+        </button>
+        <span class="save-status saved" id="saveStatus">
+            <i class="bi bi-check-circle"></i> Saved
+        </span>
+    </div>
+</div>
+
+<!-- Main Designer Container -->
+<div class="designer-container">
+    <!-- Left Sidebar: Furniture Catalog -->
+    <div class="catalog-sidebar">
+        <div class="catalog-header">
+            <input type="text" 
+                   class="catalog-search" 
+                   id="catalogSearch" 
+                   placeholder="Search furniture...">
+            <div class="catalog-filters" id="catalogFilters">
+                <button class="filter-btn active" data-type="">All</button>
+                <button class="filter-btn" data-type="base_cabinet">Base</button>
+                <button class="filter-btn" data-type="wall_cabinet">Wall</button>
+                <button class="filter-btn" data-type="tall_cabinet">Tall</button>
+                <button class="filter-btn" data-type="island">Island</button>
+                <button class="filter-btn" data-type="refrigerator">Fridge</button>
+                <button class="filter-btn" data-type="oven">Oven</button>
+                <button class="filter-btn" data-type="dishwasher">Dishwasher</button>
+                <button class="filter-btn" data-type="sink">Sink</button>
+            </div>
+        </div>
+        <div class="catalog-items" id="catalogItems">
+            <div class="loading-overlay">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Center: Canvas -->
+    <div class="canvas-area">
+        <div class="canvas-controls">
+            <div class="zoom-controls">
+                <button class="btn btn-sm btn-outline-secondary" id="zoomOutBtn">
+                    <i class="bi bi-dash"></i>
+                </button>
+                <input type="range" 
+                       id="zoomSlider" 
+                       min="0.1" 
+                       max="3" 
+                       step="0.1" 
+                       value="1" 
+                       style="width: 150px;">
+                <button class="btn btn-sm btn-outline-secondary" id="zoomInBtn">
+                    <i class="bi bi-plus"></i>
+                </button>
+                <span id="zoomDisplay" class="text-muted small">100%</span>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary" id="resetViewBtn">
+                    <i class="bi bi-arrows-angle-expand"></i> Fit to View
+                </button>
+            </div>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="designerCanvas"></canvas>
+            <div class="canvas-info">
+                <strong>Kitchen:</strong> {{ kitchen.width }}m × {{ kitchen.length }}m<br>
+                <strong>Tip:</strong> Drag items from catalog • Use mouse wheel to zoom • Drag canvas to pan
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Sidebar: Properties Panel -->
+    <div class="properties-sidebar">
+        <div class="properties-header">
+            <h5>Properties</h5>
+        </div>
+        <div class="designer-settings-panel">
+            <h6>Designer Controls</h6>
+            <div class="settings-toggle">
+                <input type="checkbox" id="toggleGuides">
+                <div>
+                    <label for="toggleGuides">Show placement guides</label>
+                    <small>Highlight valid wall areas for cabinets.</small>
+                </div>
+            </div>
+            <div class="settings-toggle">
+                <input type="checkbox" id="toggleSnapGrid">
+                <div>
+                    <label for="toggleSnapGrid">Enable snap to grid</label>
+                    <small>Automatically align objects to the grid size.</small>
+                </div>
+            </div>
+            <div class="settings-toggle">
+                <input type="checkbox" id="toggleSnapWall">
+                <div>
+                    <label for="toggleSnapWall">Enable snap to wall</label>
+                    <small>Wall objects snap directly to the nearest wall.</small>
+                </div>
+            </div>
+            <div class="settings-field">
+                <label for="inputMaxDepth">Max placement depth from wall (m)</label>
+                <input type="number" id="inputMaxDepth" min="0" step="0.05">
+                <small>Controls how deep the gray guide zone extends from each wall.</small>
+            </div>
+            <div class="settings-field">
+                <label for="inputGridSize">Grid snap size (m)</label>
+                <input type="number" id="inputGridSize" min="0" step="0.01">
+                <small>Spacing used when snap-to-grid is enabled.</small>
+            </div>
+            <div class="settings-field">
+                <label for="inputObjectSpacing">Default object spacing (m)</label>
+                <input type="number" id="inputObjectSpacing" min="0" step="0.01">
+                <small>Gap enforced when cabinets snap next to each other.</small>
+            </div>
+            <div class="settings-toggle">
+                <input type="checkbox" id="toggleAllowOverlap">
+                <div>
+                    <label for="toggleAllowOverlap">Allow object overlap</label>
+                    <small>Disable auto-spacing to intentionally stack or intersect items.</small>
+                </div>
+            </div>
+            <div class="settings-field">
+                <label for="inputAutoSave">Auto-save interval (seconds)</label>
+                <input type="number" id="inputAutoSave" min="0" step="5">
+                <small>Set to 0 to disable periodic save reminders.</small>
+            </div>
+        </div>
+        <div class="properties-content" id="propertiesContent">
+            <div class="no-selection">
+                <i class="bi bi-cursor" style="font-size: 3rem; opacity: 0.3;"></i>
+                <p>Select an object to edit its properties</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden data -->
+<div id="kitchenData" 
+    data-width="{{ kitchen.width }}"
+    data-length="{{ kitchen.length }}"
+    data-height="{{ kitchen.height }}"
+    data-wall-thickness="{{ kitchen.wall_thickness }}"
+    data-kitchen-id="{{ kitchen.pk }}">
+</div>
+{{ wall_objects|json_script:"wall-objects-json" }}
+</div>
+{% endblock %}
+
+{% block javascript %}
+<!-- Fabric.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+
+<script>
+// Global state
+const state = {
+    canvas: null,
+    furniture: [],
+    furnitureMap: new Map(),
+    placedObjects: new Map(),
+    placedFurnitureData: new Map(),
+    wallObjects: [],
+    selectedObject: null,
+    settings: null,
+    kitchenData: null,
+    isDragging: false,
+    lastSaved: Date.now(),
+    autoSaveTimer: null,
+    backgroundObjects: [],
+    wallZoneObjects: [],
+    apertureObjects: [],
+    dimensionObjects: [],
+    currentFilter: '',
+    isGenerating3D: false,
+    dragPreview: null,
+    draggingFurniture: null,
+    isPanning: false,
+    panStart: null,
+    settingsUIBound: false,
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - initializing designer');
+    initializeDesigner();
+});
+
+function syncZoomUI(zoom) {
+    const clampedZoom = Math.max(0.1, Math.min(zoom, 3));
+    const slider = document.getElementById('zoomSlider');
+    if (slider) {
+        slider.value = clampedZoom.toFixed(2);
+    }
+    const display = document.getElementById('zoomDisplay');
+    if (display) {
+        display.textContent = `${Math.round(clampedZoom * 100)}%`;
+    }
+}
+
+function kitchenToCanvas(x, y) {
+    return {
+        left: state.offsetX + x * state.scale,
+        top: state.offsetY + y * state.scale,
+    };
+}
+
+function canvasToKitchen(left, top) {
+    return {
+        x: (left - state.offsetX) / state.scale,
+        y: (top - state.offsetY) / state.scale,
+    };
+}
+
+function getCanvasPointerFromClient(clientX, clientY) {
+    if (!state.canvas) {
+        return { x: 0, y: 0 };
+    }
+    const canvasEl = state.canvas.upperCanvasEl;
+    const rect = canvasEl.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const vpt = state.canvas.viewportTransform;
+    const invX = (x - vpt[4]) / vpt[0];
+    const invY = (y - vpt[5]) / vpt[3];
+    return { x: invX, y: invY };
+}
+
+function getKitchenCoordsFromClient(clientX, clientY) {
+    const pointer = getCanvasPointerFromClient(clientX, clientY);
+    return {
+        x: (pointer.x - state.offsetX) / state.scale,
+        y: (pointer.y - state.offsetY) / state.scale,
+    };
+}
+
+function showPlacementPreview(width, depth, placement) {
+    if (!state.canvas) return;
+    const { left, top } = kitchenToCanvas(placement.x, placement.y);
+    const widthPx = width * state.scale;
+    const depthPx = depth * state.scale;
+    const valid = placement.valid !== false;
+    const fill = valid ? 'rgba(13, 110, 253, 0.15)' : 'rgba(220, 53, 69, 0.18)';
+    const stroke = valid ? '#0d6efd' : '#dc3545';
+    if (!state.dragPreview) {
+        state.dragPreview = new fabric.Rect({
+            left,
+            top,
+            width: widthPx,
+            height: depthPx,
+            fill,
+            stroke,
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            strokeDashArray: [6, 6],
+            opacity: 0.9,
+        });
+        state.canvas.add(state.dragPreview);
+    } else {
+        state.dragPreview.set({ left, top, width: widthPx, height: depthPx });
+        state.dragPreview.set({ fill, stroke });
+    }
+    state.dragPreview.setCoords();
+    state.canvas.bringToFront(state.dragPreview);
+    state.canvas.requestRenderAll();
+}
+
+function hidePlacementPreview() {
+    if (state.dragPreview && state.canvas) {
+        state.canvas.remove(state.dragPreview);
+        state.canvas.requestRenderAll();
+    }
+    state.dragPreview = null;
+}
+
+function getFurnitureMeta(furnitureId) {
+    return state.furnitureMap.get(furnitureId) || null;
+}
+
+function getEffectiveDimensions(itemData) {
+    const rotated = itemData.rotation_angle % 180 !== 0;
+    return {
+        width: rotated ? itemData.depth : itemData.width,
+        depth: rotated ? itemData.width : itemData.depth,
+    };
+}
+
+function setCanvasZoom(zoom, point = null) {
+    if (!state.canvas) return;
+    const clamped = Math.max(0.1, Math.min(zoom, 3));
+    const targetPoint = point || { x: state.canvas.width / 2, y: state.canvas.height / 2 };
+    state.canvas.zoomToPoint(targetPoint, clamped);
+    syncZoomUI(clamped);
+}
+
+function initializeDesigner() {
+    console.log('initializeDesigner() called');
+    // Get kitchen data
+    const kitchenEl = document.getElementById('kitchenData');
+    state.kitchenData = {
+        id: kitchenEl.dataset.kitchenId,
+        width: parseFloat(kitchenEl.dataset.width),
+        length: parseFloat(kitchenEl.dataset.length),
+        height: parseFloat(kitchenEl.dataset.height),
+        wallThickness: parseFloat(kitchenEl.dataset.wallThickness) || 0,
+    };
+    const wallObjectsScript = document.getElementById('wall-objects-json');
+    try {
+        state.wallObjects = wallObjectsScript ? JSON.parse(wallObjectsScript.textContent) : [];
+    } catch (error) {
+        console.warn('Failed to parse wall objects JSON', error);
+        state.wallObjects = [];
+    }
+    
+    // Initialize Fabric canvas
+    initializeCanvas();
+    
+    // Load settings and furniture catalog
+    Promise.all([
+        loadDesignerSettings(),
+        loadFurnitureCatalog(),
+        loadPlacedFurniture()
+    ]).then(() => {
+        console.log('Designer initialized');
+        initializeSettingsUI();
+        setupEventListeners();
+        startAutoSave();
+        refreshCanvasGuides();
+    });
+}
+
+function initializeCanvas() {
+    const canvasEl = document.getElementById('designerCanvas');
+    const wrapper = canvasEl.parentElement;
+    
+    // Set canvas size
+    canvasEl.width = wrapper.clientWidth;
+    canvasEl.height = wrapper.clientHeight;
+    
+    // Create Fabric canvas
+    state.canvas = new fabric.Canvas('designerCanvas', {
+        backgroundColor: '#fafafa',
+        selection: true,
+        preserveObjectStacking: true,
+    });
+    
+    // Draw kitchen layout
+    drawKitchen();
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        canvasEl.width = wrapper.clientWidth;
+        canvasEl.height = wrapper.clientHeight;
+        state.canvas.setDimensions({
+            width: wrapper.clientWidth,
+            height: wrapper.clientHeight
+        });
+        state.canvas.renderAll();
+    });
+    
+    // Handle object selection
+    state.canvas.on('selection:created', handleObjectSelection);
+    state.canvas.on('selection:updated', handleObjectSelection);
+    state.canvas.on('selection:cleared', handleObjectDeselection);
+    
+    // Handle object modification
+    state.canvas.on('object:modified', handleObjectModified);
+    state.canvas.on('object:moving', handleObjectMoving);
+    state.canvas.on('mouse:down', handleCanvasMouseDown);
+    state.canvas.on('mouse:move', handleCanvasMouseMove);
+    state.canvas.on('mouse:up', handleCanvasMouseUp);
+    state.canvas.on('mouse:wheel', handleCanvasWheel);
+    
+    // Setup drag and drop for canvas
+    setupCanvasDragDrop();
+    syncZoomUI(state.canvas.getZoom());
+}
+
+function setupCanvasDragDrop() {
+    const canvasWrapper = document.querySelector('.canvas-wrapper');
+    
+    canvasWrapper.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        canvasWrapper.classList.add('drag-over');
+        if (state.draggingFurniture) {
+            const { x, y } = getKitchenCoordsFromClient(e.clientX, e.clientY);
+            const placement = computePlacementSolution({
+                x,
+                y,
+                width: state.draggingFurniture.default_width,
+                depth: state.draggingFurniture.default_depth,
+                requiresWall: state.draggingFurniture.requires_wall,
+            });
+            showPlacementPreview(state.draggingFurniture.default_width, state.draggingFurniture.default_depth, placement);
+        }
+    });
+    
+    canvasWrapper.addEventListener('dragleave', (e) => {
+        canvasWrapper.classList.remove('drag-over');
+        hidePlacementPreview();
+    });
+    
+    canvasWrapper.addEventListener('drop', (e) => {
+        e.preventDefault();
+        canvasWrapper.classList.remove('drag-over');
+        hidePlacementPreview();
+        
+        const furnitureId = e.dataTransfer.getData('furniture-id');
+        console.log('Drop event - furniture ID:', furnitureId);
+        
+        if (!furnitureId) return;
+        
+        const furniture = state.furniture.find(f => f.id == furnitureId);
+        if (!furniture) {
+            console.error('Furniture not found:', furnitureId);
+            return;
+        }
+        
+        // Get canvas element position
+        const pointer = getCanvasPointerFromClient(e.clientX, e.clientY);
+        const { x: kitchenX, y: kitchenY } = getKitchenCoordsFromClient(e.clientX, e.clientY);
+        
+        console.log('Placing at canvas:', pointer.x.toFixed(2), pointer.y.toFixed(2), 'kitchen:', kitchenX.toFixed(2), kitchenY.toFixed(2));
+        
+        // Place furniture
+        placeFurniture(furniture, kitchenX, kitchenY);
+        state.draggingFurniture = null;
+    });
+}
+
+function handleCanvasMouseDown(opt) {
+    if (opt.e.ctrlKey) {
+        state.isPanning = true;
+        state.panStart = { x: opt.e.clientX, y: opt.e.clientY };
+        state.canvas.setCursor('grabbing');
+        state.canvas.selection = false;
+        state.canvas.discardActiveObject();
+        state.canvas.requestRenderAll();
+    }
+}
+
+function handleCanvasMouseMove(opt) {
+    if (!state.isPanning || !state.panStart) return;
+    const e = opt.e;
+    const dx = e.clientX - state.panStart.x;
+    const dy = e.clientY - state.panStart.y;
+    const vpt = state.canvas.viewportTransform;
+    vpt[4] += dx;
+    vpt[5] += dy;
+    state.canvas.requestRenderAll();
+    state.panStart = { x: e.clientX, y: e.clientY };
+}
+
+function handleCanvasMouseUp() {
+    if (state.isPanning) {
+        state.isPanning = false;
+        state.panStart = null;
+        state.canvas.setCursor('default');
+        state.canvas.selection = true;
+    }
+}
+
+function handleCanvasWheel(opt) {
+    const delta = opt.e.deltaY;
+    let zoom = state.canvas.getZoom();
+    zoom *= 0.999 ** delta;
+    setCanvasZoom(zoom, { x: opt.e.offsetX, y: opt.e.offsetY });
+    opt.e.preventDefault();
+    opt.e.stopPropagation();
+}
+
+function clampWithinKitchen(x, y, width, depth) {
+    const maxX = Math.max(0, state.kitchenData.width - width);
+    const maxY = Math.max(0, state.kitchenData.length - depth);
+    return {
+        x: Math.min(Math.max(0, x), maxX),
+        y: Math.min(Math.max(0, y), maxY),
+    };
+}
+
+function rangesOverlap(startA, endA, startB, endB) {
+    return Math.max(startA, startB) <= Math.min(endA, endB);
+}
+
+function applyNeighborSnap({ x, y, width, depth, ignoreId = null, lockX = false, lockY = false }) {
+    const spacing = Math.max(0, parseFloat(state.settings?.default_object_spacing) || 0);
+    const snapThreshold = Math.max(0.02, parseFloat(state.settings?.grid_snap_size) || 0.1);
+    if (state.settings?.allow_object_overlap) {
+        return clampWithinKitchen(x, y, width, depth);
+    }
+    let snappedX = x;
+    let snappedY = y;
+    let bestXDelta = Number.POSITIVE_INFINITY;
+    let bestYDelta = Number.POSITIVE_INFINITY;
+
+    state.placedFurnitureData.forEach((item, key) => {
+        if ((ignoreId !== null && Number(key) === Number(ignoreId)) || !item) {
+            return;
+        }
+        const dims = getEffectiveDimensions(item);
+        const otherLeft = parseFloat(item.position_x);
+        const otherTop = parseFloat(item.position_y);
+        if (Number.isNaN(otherLeft) || Number.isNaN(otherTop)) {
+            return;
+        }
+        const otherRight = otherLeft + dims.width;
+        const otherBottom = otherTop + dims.depth;
+
+        if (!lockX && rangesOverlap(y, y + depth, otherTop, otherBottom)) {
+            const snapLeft = otherLeft - width - spacing;
+            const snapRight = otherRight + spacing;
+            const deltaLeft = Math.abs(x - snapLeft);
+            const deltaRight = Math.abs(x - snapRight);
+            const overlaps = !(x + width + spacing <= otherLeft || x >= otherRight + spacing);
+            if ((deltaLeft <= snapThreshold || overlaps) && deltaLeft < bestXDelta) {
+                bestXDelta = deltaLeft;
+                snappedX = snapLeft;
+            }
+            if ((deltaRight <= snapThreshold || overlaps) && deltaRight < bestXDelta) {
+                bestXDelta = deltaRight;
+                snappedX = snapRight;
+            }
+        }
+
+        if (!lockY && rangesOverlap(x, x + width, otherLeft, otherRight)) {
+            const snapTop = otherTop - depth - spacing;
+            const snapBottom = otherBottom + spacing;
+            const deltaTop = Math.abs(y - snapTop);
+            const deltaBottom = Math.abs(y - snapBottom);
+            const overlaps = !(y + depth + spacing <= otherTop || y >= otherBottom + spacing);
+            if ((deltaTop <= snapThreshold || overlaps) && deltaTop < bestYDelta) {
+                bestYDelta = deltaTop;
+                snappedY = snapTop;
+            }
+            if ((deltaBottom <= snapThreshold || overlaps) && deltaBottom < bestYDelta) {
+                bestYDelta = deltaBottom;
+                snappedY = snapBottom;
+            }
+        }
+    });
+
+    return clampWithinKitchen(snappedX, snappedY, width, depth);
+}
+
+function applyGridSnap(value) {
+    const snapSize = state.settings?.grid_snap_size;
+    if (!state.settings?.enable_snap_to_grid || !snapSize) {
+        return value;
+    }
+    const snap = parseFloat(snapSize);
+    if (!snap || snap <= 0) {
+        return value;
+    }
+    return Math.round(value / snap) * snap;
+}
+
+function calculateWallSnap(x, y, width, depth, requiresWall) {
+    const kitchenWidth = state.kitchenData.width;
+    const kitchenLength = state.kitchenData.length;
+    const snapDistance = parseFloat(state.settings?.max_placement_depth_from_wall) || 0.5;
+    const distances = [
+        { side: 'front', distance: y },
+        { side: 'back', distance: kitchenLength - (y + depth) },
+        { side: 'left', distance: x },
+        { side: 'right', distance: kitchenWidth - (x + width) },
+    ];
+    const closest = distances.reduce((min, current) => current.distance < min.distance ? current : min, distances[0]);
+    const shouldSnap = state.settings?.enable_snap_to_wall && (requiresWall || closest.distance <= snapDistance);
+    let snappedX = x;
+    let snappedY = y;
+    if (shouldSnap) {
+        switch (closest.side) {
+            case 'front':
+                snappedY = 0;
+                break;
+            case 'back':
+                snappedY = Math.max(0, kitchenLength - depth);
+                break;
+            case 'left':
+                snappedX = 0;
+                break;
+            case 'right':
+                snappedX = Math.max(0, kitchenWidth - width);
+                break;
+        }
+    }
+    return {
+        shouldSnap,
+        x: snappedX,
+        y: snappedY,
+        isPlaced: shouldSnap,
+        wallSide: shouldSnap ? closest.side : 'none',
+        distance: closest.distance,
+    };
+}
+
+function computePlacementSolution({ x, y, width, depth, requiresWall }, options = {}) {
+    const { ignoreId = null } = options;
+    let { x: clampedX, y: clampedY } = clampWithinKitchen(x, y, width, depth);
+    clampedX = applyGridSnap(clampedX);
+    clampedY = applyGridSnap(clampedY);
+    ({ x: clampedX, y: clampedY } = clampWithinKitchen(clampedX, clampedY, width, depth));
+    const wallSnap = calculateWallSnap(clampedX, clampedY, width, depth, requiresWall);
+    const lockX = wallSnap.isPlaced && (wallSnap.wallSide === 'left' || wallSnap.wallSide === 'right');
+    const lockY = wallSnap.isPlaced && (wallSnap.wallSide === 'front' || wallSnap.wallSide === 'back');
+    const neighborSnap = applyNeighborSnap({
+        x: wallSnap.x,
+        y: wallSnap.y,
+        width,
+        depth,
+        ignoreId,
+        lockX,
+        lockY,
+    });
+    const placement = {
+        x: neighborSnap.x,
+        y: neighborSnap.y,
+        isPlacedOnWall: wallSnap.isPlaced,
+        wallSide: wallSnap.wallSide,
+    };
+    if (requiresWall && !wallSnap.shouldSnap) {
+        return {
+            ...placement,
+            valid: false,
+            message: 'This object must be placed against a wall. Move it closer or enable snap-to-wall.',
+        };
+    }
+    return {
+        ...placement,
+        valid: true,
+    };
+}
+
+function drawKitchen() {
+    const { width, length } = state.kitchenData;
+    const canvasWidth = state.canvas.width;
+    const canvasHeight = state.canvas.height;
+    const padding = 100;
+    const scaleX = (canvasWidth - padding * 2) / width;
+    const scaleY = (canvasHeight - padding * 2) / length;
+    const scale = Math.min(scaleX, scaleY);
+
+    state.scale = scale;
+    state.offsetX = (canvasWidth - width * scale) / 2;
+    state.offsetY = (canvasHeight - length * scale) / 2;
+
+    renderCanvasBase(width, length, scale);
+}
+
+function renderCanvasBase(width, length, scale) {
+    clearCanvasLayer(state.backgroundObjects);
+    clearCanvasLayer(state.wallZoneObjects);
+    clearCanvasLayer(state.apertureObjects);
+    drawGrid(width, length, scale);
+    drawKitchenBoundary(width, length, scale);
+    if (state.settings?.show_placement_guides) {
+        drawWallZones(width, length, scale);
+    }
+    drawWallCutouts(width, length, scale);
+    drawDimensionLines();
+    state.canvas.renderAll();
+}
+
+function refreshCanvasGuides() {
+    if (!state.canvas || !state.kitchenData) return;
+    renderCanvasBase(state.kitchenData.width, state.kitchenData.length, state.scale);
+}
+
+function clearCanvasLayer(list) {
+    if (!list) return;
+    list.forEach(obj => {
+        if (obj && !obj.isDisposed) {
+            state.canvas.remove(obj);
+        }
+    });
+    list.length = 0;
+}
+
+function drawKitchenBoundary(width, length, scale) {
+    const boundary = new fabric.Rect({
+        left: state.offsetX,
+        top: state.offsetY,
+        width: width * scale,
+        height: length * scale,
+        fill: '#ffffff',
+        stroke: '#2563eb',
+        strokeWidth: 2,
+        selectable: false,
+        evented: false,
+        shadow: {
+            color: 'rgba(0,0,0,0.15)',
+            blur: 15,
+            offsetX: 0,
+            offsetY: 4,
+        }
+    });
+    state.canvas.add(boundary);
+    state.canvas.sendToBack(boundary);
+    state.backgroundObjects.push(boundary);
+}
+
+function drawGrid(width, length, scale) {
+    const minorGridSize = 0.1; // Minor grid every 10cm
+    const majorGridSize = 1.0; // Major grid every 1 meter
+    const minorGridColor = '#e8e8e8';
+    const majorGridColor = '#d0d0d0';
+    
+    // Minor grid - Vertical lines
+    for (let x = 0; x <= width; x += minorGridSize) {
+        const isMajor = Math.abs(x % majorGridSize) < 0.01;
+        const line = new fabric.Line([
+            state.offsetX + x * scale,
+            state.offsetY,
+            state.offsetX + x * scale,
+            state.offsetY + length * scale
+        ], {
+            stroke: isMajor ? majorGridColor : minorGridColor,
+            strokeWidth: isMajor ? 1.5 : 0.5,
+            selectable: false,
+            evented: false,
+            opacity: isMajor ? 0.8 : 0.4,
+        });
+        state.canvas.add(line);
+        state.canvas.sendToBack(line);
+        state.backgroundObjects.push(line);
+        
+        // Add measurement labels for major grid lines
+        if (isMajor && x > 0 && x < width) {
+            const text = new fabric.Text(`${x.toFixed(1)}m`, {
+                left: state.offsetX + x * scale - 15,
+                top: state.offsetY - 20,
+                fontSize: 11,
+                fill: '#6c757d',
+                selectable: false,
+                evented: false,
+            });
+            state.canvas.add(text);
+            state.backgroundObjects.push(text);
+        }
+    }
+    
+    // Minor grid - Horizontal lines
+    for (let y = 0; y <= length; y += minorGridSize) {
+        const isMajor = Math.abs(y % majorGridSize) < 0.01;
+        const line = new fabric.Line([
+            state.offsetX,
+            state.offsetY + y * scale,
+            state.offsetX + width * scale,
+            state.offsetY + y * scale
+        ], {
+            stroke: isMajor ? majorGridColor : minorGridColor,
+            strokeWidth: isMajor ? 1.5 : 0.5,
+            selectable: false,
+            evented: false,
+            opacity: isMajor ? 0.8 : 0.4,
+        });
+        state.canvas.add(line);
+        state.canvas.sendToBack(line);
+        state.backgroundObjects.push(line);
+        
+        // Add measurement labels for major grid lines
+        if (isMajor && y > 0 && y < length) {
+            const text = new fabric.Text(`${y.toFixed(1)}m`, {
+                left: state.offsetX - 35,
+                top: state.offsetY + y * scale - 7,
+                fontSize: 11,
+                fill: '#6c757d',
+                selectable: false,
+                evented: false,
+            });
+            state.canvas.add(text);
+            state.backgroundObjects.push(text);
+        }
+    }
+}
+
+function drawWallZones(width, length, scale) {
+    const depthSetting = state.settings ? parseFloat(state.settings.max_placement_depth_from_wall) : 0.8;
+    if (!depthSetting || depthSetting <= 0) {
+        return;
+    }
+    const depth = Math.min(depthSetting, Math.min(width, length) / 2);
+    const lineColor = 'rgba(108, 117, 125, 0.8)';
+    const lineStyle = {
+        stroke: lineColor,
+        strokeWidth: 2,
+        strokeDashArray: [10, 6],
+        selectable: false,
+        evented: false,
+    };
+    const lines = [
+        new fabric.Line([
+            state.offsetX,
+            state.offsetY + depth * scale,
+            state.offsetX + width * scale,
+            state.offsetY + depth * scale,
+        ], lineStyle),
+        new fabric.Line([
+            state.offsetX,
+            state.offsetY + (length - depth) * scale,
+            state.offsetX + width * scale,
+            state.offsetY + (length - depth) * scale,
+        ], lineStyle),
+        new fabric.Line([
+            state.offsetX + depth * scale,
+            state.offsetY,
+            state.offsetX + depth * scale,
+            state.offsetY + length * scale,
+        ], lineStyle),
+        new fabric.Line([
+            state.offsetX + (width - depth) * scale,
+            state.offsetY,
+            state.offsetX + (width - depth) * scale,
+            state.offsetY + length * scale,
+        ], lineStyle),
+    ];
+    lines.forEach(line => {
+        state.canvas.add(line);
+        state.wallZoneObjects.push(line);
+    });
+}
+
+function drawWallCutouts(width, length, scale) {
+    clearCanvasLayer(state.apertureObjects);
+    if (!state.wallObjects || !state.wallObjects.length) {
+        return;
+    }
+    const wallThickness = state.kitchenData?.wallThickness || 0.2;
+    const thicknessPx = Math.max(6, wallThickness * scale);
+    state.wallObjects.forEach(obj => {
+        const rectConfig = getApertureRect(obj, thicknessPx, width, length, scale);
+        if (!rectConfig) return;
+        const color = obj.object_type === 'door'
+            ? 'rgba(180, 83, 9, 0.7)'
+            : obj.object_type === 'window'
+                ? 'rgba(14, 165, 233, 0.7)'
+                : 'rgba(73, 80, 87, 0.6)';
+        const rect = new fabric.Rect({
+            left: rectConfig.left,
+            top: rectConfig.top,
+            width: rectConfig.width,
+            height: rectConfig.height,
+            fill: color,
+            stroke: '#0f172a',
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            opacity: 0.9,
+        });
+        state.canvas.add(rect);
+        state.apertureObjects.push(rect);
+        const label = new fabric.Text(obj.object_type === 'door' ? 'Door' : 'Window', {
+            left: rect.left + rect.width / 2,
+            top: rect.top + rect.height / 2,
+            fontSize: 11,
+            fontWeight: '600',
+            fill: '#0f172a',
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+        });
+        state.canvas.add(label);
+        state.apertureObjects.push(label);
+    });
+}
+
+function getApertureRect(obj, thicknessPx, width, length, scale) {
+    const distance = obj.distance_from_wall_start;
+    const span = obj.object_width;
+    switch (obj.wall) {
+        case 'width_wall_1': // Front (Y=0)
+            return {
+                left: state.offsetX + distance * scale,
+                top: state.offsetY - thicknessPx / 2,
+                width: span * scale,
+                height: thicknessPx,
+            };
+        case 'width_wall_2': // Back (Y=length)
+            return {
+                left: state.offsetX + distance * scale,
+                top: state.offsetY + length * scale - thicknessPx / 2,
+                width: span * scale,
+                height: thicknessPx,
+            };
+        case 'length_wall_1': // Left (X=0)
+            return {
+                left: state.offsetX - thicknessPx / 2,
+                top: state.offsetY + distance * scale,
+                width: thicknessPx,
+                height: span * scale,
+            };
+        case 'length_wall_2': // Right (X=width)
+            return {
+                left: state.offsetX + width * scale - thicknessPx / 2,
+                top: state.offsetY + distance * scale,
+                width: thicknessPx,
+                height: span * scale,
+            };
+        default:
+            return null;
+    }
+}
+
+function buildAxisSegments(axis) {
+    if (!state.kitchenData) return [];
+    const kitchenSpan = axis === 'x' ? state.kitchenData.width : state.kitchenData.length;
+    if (!kitchenSpan) return [];
+    const objects = [];
+    state.placedFurnitureData.forEach(item => {
+        if (!item) return;
+        const dims = getEffectiveDimensions(item);
+        const rawStart = axis === 'x' ? parseFloat(item.position_x) : parseFloat(item.position_y);
+        if (Number.isNaN(rawStart)) return;
+        const size = axis === 'x' ? dims.width : dims.depth;
+        const start = Math.max(0, Math.min(kitchenSpan, rawStart));
+        const end = Math.max(start, Math.min(kitchenSpan, start + size));
+        objects.push({ start, end, name: item.furniture_name });
+    });
+    const markers = new Set([0, kitchenSpan]);
+    objects.forEach(obj => {
+        markers.add(Number(obj.start.toFixed(3)));
+        markers.add(Number(obj.end.toFixed(3)));
+    });
+    const sortedMarkers = Array.from(markers).sort((a, b) => a - b);
+    const segments = [];
+    for (let i = 0; i < sortedMarkers.length - 1; i += 1) {
+        const segStart = sortedMarkers[i];
+        const segEnd = sortedMarkers[i + 1];
+        const length = segEnd - segStart;
+        if (length <= 0.01) continue;
+        const midpoint = segStart + length / 2;
+        const occupant = objects.find(obj => midpoint >= obj.start && midpoint <= obj.end);
+        segments.push({
+            start: segStart,
+            end: segEnd,
+            length,
+            type: occupant ? 'object' : 'gap',
+            objectName: occupant?.name || '',
+        });
+    }
+    return segments;
+}
+
+function drawMeasurementAxis(segments, orientation) {
+    if (!segments.length || !state.canvas) return;
+    const scale = state.scale;
+    const labelBg = 'rgba(255, 255, 255, 0.85)';
+    const gapColor = '#38bdf8';
+    const objectColor = '#fb923c';
+    const axisStroke = '#0f172a';
+    if (orientation === 'horizontal') {
+        const baseY = Math.max(20, state.offsetY - 30);
+        const startX = state.offsetX;
+        const endX = state.offsetX + state.kitchenData.width * scale;
+        const baseLine = new fabric.Line([startX, baseY, endX, baseY], {
+            stroke: axisStroke,
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+        });
+        state.canvas.add(baseLine);
+        state.dimensionObjects.push(baseLine);
+        const ticks = new Set();
+        segments.forEach(seg => {
+            const segStartPx = state.offsetX + seg.start * scale;
+            const segEndPx = state.offsetX + seg.end * scale;
+            const segmentLine = new fabric.Line([segStartPx, baseY, segEndPx, baseY], {
+                stroke: seg.type === 'object' ? objectColor : gapColor,
+                strokeWidth: 4,
+                selectable: false,
+                evented: false,
+            });
+            state.canvas.add(segmentLine);
+            state.dimensionObjects.push(segmentLine);
+            const label = `${seg.length.toFixed(2)}m${seg.objectName ? ` ${seg.objectName}` : ''}`;
+            const labelText = new fabric.Text(label, {
+                left: (segStartPx + segEndPx) / 2,
+                top: baseY - 16,
+                fontSize: 12,
+                fill: axisStroke,
+                originX: 'center',
+                selectable: false,
+                evented: false,
+                backgroundColor: labelBg,
+            });
+            state.canvas.add(labelText);
+            state.dimensionObjects.push(labelText);
+            ticks.add(seg.start);
+            ticks.add(seg.end);
+        });
+        Array.from(ticks).forEach(value => {
+            const px = state.offsetX + value * scale;
+            const tick = new fabric.Line([px, baseY - 6, px, baseY + 6], {
+                stroke: axisStroke,
+                strokeWidth: 1,
+                selectable: false,
+                evented: false,
+            });
+            state.canvas.add(tick);
+            state.dimensionObjects.push(tick);
+        });
+    } else {
+        const baseX = Math.max(45, state.offsetX - 40);
+        const startY = state.offsetY;
+        const endY = state.offsetY + state.kitchenData.length * scale;
+        const baseLine = new fabric.Line([baseX, startY, baseX, endY], {
+            stroke: axisStroke,
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+        });
+        state.canvas.add(baseLine);
+        state.dimensionObjects.push(baseLine);
+        const ticks = new Set();
+        segments.forEach(seg => {
+            const segStartPx = state.offsetY + seg.start * scale;
+            const segEndPx = state.offsetY + seg.end * scale;
+            const segmentLine = new fabric.Line([baseX, segStartPx, baseX, segEndPx], {
+                stroke: seg.type === 'object' ? objectColor : gapColor,
+                strokeWidth: 4,
+                selectable: false,
+                evented: false,
+            });
+            state.canvas.add(segmentLine);
+            state.dimensionObjects.push(segmentLine);
+            const label = `${seg.length.toFixed(2)}m${seg.objectName ? ` ${seg.objectName}` : ''}`;
+            const labelText = new fabric.Text(label, {
+                left: baseX - 8,
+                top: (segStartPx + segEndPx) / 2,
+                fontSize: 12,
+                fill: axisStroke,
+                originY: 'center',
+                selectable: false,
+                evented: false,
+                angle: -90,
+                backgroundColor: labelBg,
+            });
+            state.canvas.add(labelText);
+            state.dimensionObjects.push(labelText);
+            ticks.add(seg.start);
+            ticks.add(seg.end);
+        });
+        Array.from(ticks).forEach(value => {
+            const py = state.offsetY + value * scale;
+            const tick = new fabric.Line([baseX - 6, py, baseX + 6, py], {
+                stroke: axisStroke,
+                strokeWidth: 1,
+                selectable: false,
+                evented: false,
+            });
+            state.canvas.add(tick);
+            state.dimensionObjects.push(tick);
+        });
+    }
+}
+
+function drawDimensionLines() {
+    clearCanvasLayer(state.dimensionObjects);
+    const horizontalSegments = buildAxisSegments('x');
+    const verticalSegments = buildAxisSegments('y');
+    drawMeasurementAxis(horizontalSegments, 'horizontal');
+    drawMeasurementAxis(verticalSegments, 'vertical');
+    state.canvas?.requestRenderAll();
+}
+
+// API Functions
+async function loadDesignerSettings() {
+    try {
+        console.log('Loading designer settings...');
+        const response = await fetch('/kitchen/api/designer-settings/');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        state.settings = await response.json();
+        console.log('Loaded settings:', state.settings);
+    } catch (error) {
+        console.error('Failed to load settings:', error);
+        // Use default settings
+        state.settings = {
+            max_placement_depth_from_wall: 0.6,
+            grid_snap_size: 0.1,
+            default_object_spacing: 0.005,
+            allow_object_overlap: false,
+            show_placement_guides: true,
+            enable_snap_to_grid: true,
+            enable_snap_to_wall: true,
+            auto_save_interval: 30,
+        };
+    }
+}
+
+function initializeSettingsUI() {
+    const guidesToggle = document.getElementById('toggleGuides');
+    const gridToggle = document.getElementById('toggleSnapGrid');
+    const wallToggle = document.getElementById('toggleSnapWall');
+    const overlapToggle = document.getElementById('toggleAllowOverlap');
+    const wallDepthInput = document.getElementById('inputMaxDepth');
+    const gridSizeInput = document.getElementById('inputGridSize');
+    const spacingInput = document.getElementById('inputObjectSpacing');
+    const autoSaveInput = document.getElementById('inputAutoSave');
+
+    if (guidesToggle) {
+        guidesToggle.checked = !!state.settings?.show_placement_guides;
+    }
+    if (gridToggle) {
+        gridToggle.checked = !!state.settings?.enable_snap_to_grid;
+    }
+    if (wallToggle) {
+        wallToggle.checked = !!state.settings?.enable_snap_to_wall;
+    }
+    if (overlapToggle) {
+        overlapToggle.checked = !!state.settings?.allow_object_overlap;
+    }
+    if (wallDepthInput && state.settings?.max_placement_depth_from_wall !== undefined) {
+        wallDepthInput.value = state.settings.max_placement_depth_from_wall;
+    }
+    if (gridSizeInput && state.settings?.grid_snap_size !== undefined) {
+        gridSizeInput.value = state.settings.grid_snap_size;
+    }
+    if (spacingInput && state.settings?.default_object_spacing !== undefined) {
+        spacingInput.value = state.settings.default_object_spacing;
+    }
+    if (autoSaveInput && state.settings?.auto_save_interval !== undefined) {
+        autoSaveInput.value = state.settings.auto_save_interval;
+    }
+
+    if (state.settingsUIBound) {
+        return;
+    }
+
+    guidesToggle?.addEventListener('change', (e) => {
+        handleSettingChange('show_placement_guides', e.target.checked, { refreshGuides: true });
+    });
+    gridToggle?.addEventListener('change', (e) => {
+        handleSettingChange('enable_snap_to_grid', e.target.checked);
+    });
+    wallToggle?.addEventListener('change', (e) => {
+        handleSettingChange('enable_snap_to_wall', e.target.checked);
+    });
+    overlapToggle?.addEventListener('change', (e) => {
+        handleSettingChange('allow_object_overlap', e.target.checked);
+    });
+    wallDepthInput?.addEventListener('change', (e) => {
+        let value = parseFloat(e.target.value);
+        if (Number.isNaN(value) || value < 0) {
+            value = 0;
+        }
+        e.target.value = value;
+        handleSettingChange('max_placement_depth_from_wall', value, { refreshGuides: true });
+    });
+    gridSizeInput?.addEventListener('change', (e) => {
+        let value = parseFloat(e.target.value);
+        if (Number.isNaN(value) || value < 0) {
+            value = 0;
+        }
+        e.target.value = value;
+        handleSettingChange('grid_snap_size', value);
+    });
+    spacingInput?.addEventListener('change', (e) => {
+        let value = parseFloat(e.target.value);
+        if (Number.isNaN(value) || value < 0) {
+            value = 0;
+        }
+        e.target.value = value;
+        handleSettingChange('default_object_spacing', value);
+    });
+    autoSaveInput?.addEventListener('change', (e) => {
+        let value = parseInt(e.target.value, 10);
+        if (Number.isNaN(value) || value < 0) {
+            value = 0;
+        }
+        e.target.value = value;
+        handleSettingChange('auto_save_interval', value, { restartAutoSave: true });
+    });
+    state.settingsUIBound = true;
+}
+
+async function loadFurnitureCatalog(type = '', search = '') {
+    try {
+        let url = '/kitchen/api/furniture-catalog/?';
+        if (type) url += `type=${type}&`;
+        if (search) url += `search=${search}`;
+        
+        console.log('Loading catalog from:', url);
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        state.furniture = data.furniture || [];
+        state.furniture.forEach(item => state.furnitureMap.set(item.id, item));
+        console.log('Loaded furniture:', state.furniture.length);
+        renderCatalog();
+    } catch (error) {
+        console.error('Failed to load catalog:', error);
+        const container = document.getElementById('catalogItems');
+        container.innerHTML = '<p class="text-center text-danger p-4">Error loading catalog: ' + error.message + '</p>';
+    }
+}
+
+async function loadPlacedFurniture() {
+    try {
+        console.log('Loading placed furniture for kitchen:', state.kitchenData.id);
+        const response = await fetch(`/kitchen/api/${state.kitchenData.id}/placed-furniture/`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('Loaded placed furniture:', data.placed_furniture?.length || 0);
+        
+        // Clear existing placed objects
+        state.placedObjects.forEach(obj => {
+            state.canvas.remove(obj);
+        });
+        state.placedObjects.clear();
+        state.placedFurnitureData.clear();
+        
+        // Add new objects
+        if (data.placed_furniture) {
+            data.placed_furniture.forEach(item => {
+                addPlacedObjectToCanvas(item);
+            });
+        }
+        
+        state.canvas.renderAll();
+        drawDimensionLines();
+    } catch (error) {
+        console.error('Failed to load placed furniture:', error);
+    }
+}
+
+function renderCatalog() {
+    const container = document.getElementById('catalogItems');
+    container.innerHTML = '';
+    
+    console.log('Rendering catalog with', state.furniture.length, 'items');
+    
+    if (state.furniture.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted p-4">No furniture found</p>';
+        return;
+    }
+    
+    state.furniture.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'catalog-item';
+        div.draggable = true;
+        div.dataset.furnitureId = item.id;
+        
+        div.innerHTML = `
+            <div class="catalog-item-header">
+                <img src="${item.thumbnail || '/static/images/placeholder.png'}" 
+                     alt="${item.name}" 
+                     class="catalog-item-thumbnail">
+                <div class="catalog-item-info">
+                    <h6>${item.name}</h6>
+                    <span class="badge bg-secondary">${item.object_type_display}</span>
+                </div>
+            </div>
+            <div class="catalog-item-dims">
+                ${item.default_width}m × ${item.default_depth}m × ${item.default_height}m
+            </div>
+        `;
+        
+        // Drag start event
+        div.addEventListener('dragstart', (e) => {
+            console.log('Drag started for:', item.name);
+            e.dataTransfer.setData('furniture-id', item.id);
+            e.dataTransfer.effectAllowed = 'copy';
+            state.draggingFurniture = item;
+        });
+
+        div.addEventListener('dragend', () => {
+            state.draggingFurniture = null;
+            hidePlacementPreview();
+        });
+        
+        container.appendChild(div);
+    });
+}
+
+// Note: Canvas drop handling is now done via HTML5 drag/drop in setupCanvasDragDrop()
+
+async function placeFurniture(furniture, x, y) {
+    try {
+        const placement = computePlacementSolution({
+            x,
+            y,
+            width: furniture.default_width,
+            depth: furniture.default_depth,
+            requiresWall: furniture.requires_wall,
+        });
+        if (!placement.valid) {
+            throw new Error(placement.message);
+        }
+        
+        console.log('Placing furniture:', furniture.name, 'at', placement.x.toFixed(2), placement.y.toFixed(2));
+        setSaveStatus('saving');
+        
+        const response = await fetch(`/kitchen/api/${state.kitchenData.id}/place-furniture/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                furniture_object_id: furniture.id,
+                position_x: placement.x.toFixed(2),
+                position_y: placement.y.toFixed(2),
+                width: furniture.default_width,
+                height: furniture.default_height,
+                depth: furniture.default_depth,
+                is_placed_on_wall: placement.isPlacedOnWall,
+                wall_side: placement.wallSide,
+            }),
+        });
+        
+        const data = await response.json();
+        console.log('Place furniture response:', data);
+        
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
+        
+        // Reload placed furniture to get the complete object
+        await loadPlacedFurniture();
+        setSaveStatus('saved');
+    } catch (error) {
+        console.error('Failed to place furniture:', error);
+        alert('Error placing furniture: ' + error.message);
+        setSaveStatus('error');
+    }
+}
+
+function addPlacedObjectToCanvas(item) {
+    // Check if already added
+    if (state.placedObjects.has(item.id)) {
+        state.canvas.remove(state.placedObjects.get(item.id));
+    }
+    
+    // Consider rotation
+    let width = item.rotation_angle % 180 === 0 ? item.width : item.depth;
+    let depth = item.rotation_angle % 180 === 0 ? item.depth : item.width;
+    
+    // Color based on object type
+    const typeColors = {
+        'cabinet': '#8b4513',
+        'counter': '#696969',
+        'island': '#a0522d',
+        'refrigerator': '#4682b4',
+        'oven': '#2f4f4f',
+        'dishwasher': '#708090',
+        'sink': '#87ceeb',
+    };
+    const fillColor = typeColors[item.object_type] || '#6c757d';
+    
+    // Create rectangle representing the furniture
+    const rect = new fabric.Rect({
+        left: state.offsetX + item.position_x * state.scale,
+        top: state.offsetY + item.position_y * state.scale,
+        width: width * state.scale,
+        height: depth * state.scale,
+        fill: fillColor,
+        stroke: '#2d3748',
+        strokeWidth: 2,
+        opacity: 0.85,
+        rx: 4,
+        ry: 4,
+        cornerColor: '#3b82f6',
+        cornerSize: 10,
+        transparentCorners: false,
+        borderColor: '#3b82f6',
+        borderScaleFactor: 2,
+        furnitureId: item.id,
+        furnitureData: item,
+        shadow: {
+            color: 'rgba(0,0,0,0.2)',
+            blur: 8,
+            offsetX: 0,
+            offsetY: 2,
+        }
+    });
+    
+    // Add label
+    const arrowSize = Math.max(12, Math.min(rect.width, rect.height) * 0.35);
+    const directionIcon = new fabric.Triangle({
+        width: arrowSize,
+        height: arrowSize + 4,
+        fill: '#f8fafc',
+        stroke: '#0f172a',
+        strokeWidth: 1,
+        originX: 'center',
+        originY: 'center',
+        top: rect.top + arrowSize / 2 + 4,
+        left: rect.left + rect.width / 2,
+        selectable: false,
+        evented: false,
+        angle: (item.rotation_angle + 180) % 360,
+        opacity: 0.9,
+    });
+    const text = new fabric.Text(item.furniture_name, {
+        left: rect.left + (rect.width / 2),
+        top: rect.top + (rect.height / 2),
+        fontSize: Math.min(14, rect.width / 8),
+        fill: '#ffffff',
+        fontFamily: 'Arial, sans-serif',
+        fontWeight: '600',
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        shadow: {
+            color: 'rgba(0,0,0,0.5)',
+            blur: 2,
+        }
+    });
+    
+    // Group rectangle, direction indicator, and text
+    const group = new fabric.Group([rect, directionIcon, text], {
+        furnitureId: item.id,
+        furnitureData: item,
+    });
+    group.lastValidPosition = { x: item.position_x, y: item.position_y };
+    group.lastValidPlacement = {
+        x: item.position_x,
+        y: item.position_y,
+        isPlacedOnWall: item.is_placed_on_wall,
+        wallSide: item.wall_side,
+    };
+    
+    state.canvas.add(group);
+    state.placedFurnitureData.set(item.id, item);
+    state.placedObjects.set(item.id, group);
+}
+
+function handleObjectSelection(e) {
+    const obj = e.selected[0];
+    if (obj && obj.furnitureData) {
+        state.selectedObject = obj;
+        renderPropertiesPanel(obj.furnitureData);
+    }
+}
+
+function handleObjectDeselection() {
+    state.selectedObject = null;
+    document.getElementById('propertiesContent').innerHTML = `
+        <div class="no-selection">
+            <i class="bi bi-cursor" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p>Select an object to edit its properties</p>
+        </div>
+    `;
+}
+
+function handleObjectMoving(e) {
+    const obj = e.target;
+    if (!obj || !obj.furnitureData || state.isPanning) return;
+    const itemData = obj.furnitureData;
+    const dims = getEffectiveDimensions(itemData);
+    const kitchenPos = canvasToKitchen(obj.left, obj.top);
+    const placement = computePlacementSolution({
+        x: kitchenPos.x,
+        y: kitchenPos.y,
+        width: dims.width,
+        depth: dims.depth,
+        requiresWall: itemData.requires_wall,
+    }, { ignoreId: itemData.id });
+    if (!placement.valid) {
+        if (obj.lastValidPlacement) {
+            const { left, top } = kitchenToCanvas(obj.lastValidPlacement.x, obj.lastValidPlacement.y);
+            obj.set({ left, top });
+            obj.setCoords();
+        }
+        return;
+    }
+    const { left, top } = kitchenToCanvas(placement.x, placement.y);
+    obj.set({ left, top });
+    obj.setCoords();
+    obj.lastValidPosition = { x: placement.x, y: placement.y };
+    obj.lastValidPlacement = {
+        x: placement.x,
+        y: placement.y,
+        isPlacedOnWall: placement.isPlacedOnWall,
+        wallSide: placement.wallSide,
+    };
+}
+
+async function handleObjectModified(e) {
+    const obj = e.target;
+    if (!obj || !obj.furnitureData) return;
+    const itemData = obj.furnitureData;
+    const dims = getEffectiveDimensions(itemData);
+    const kitchenPos = canvasToKitchen(obj.left, obj.top);
+    const placement = computePlacementSolution({
+        x: kitchenPos.x,
+        y: kitchenPos.y,
+        width: dims.width,
+        depth: dims.depth,
+        requiresWall: itemData.requires_wall,
+    }, { ignoreId: itemData.id });
+    if (!placement.valid) {
+        alert(placement.message);
+        if (obj.lastValidPlacement) {
+            const { left, top } = kitchenToCanvas(obj.lastValidPlacement.x, obj.lastValidPlacement.y);
+            obj.set({ left, top });
+            obj.setCoords();
+            state.canvas.renderAll();
+        }
+        return;
+    }
+    await persistObjectPosition(itemData.id, placement);
+}
+
+async function persistObjectPosition(itemId, placement) {
+    const itemData = state.placedFurnitureData.get(itemId);
+    try {
+        setSaveStatus('saving');
+        const response = await fetch(`/kitchen/api/placed-furniture/${itemId}/position/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                position_x: placement.x.toFixed(2),
+                position_y: placement.y.toFixed(2),
+                is_placed_on_wall: placement.isPlacedOnWall,
+                wall_side: placement.wallSide,
+            }),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to update position');
+        }
+        if (itemData) {
+            itemData.position_x = placement.x;
+            itemData.position_y = placement.y;
+            itemData.is_placed_on_wall = placement.isPlacedOnWall;
+            itemData.wall_side = placement.wallSide;
+        }
+        const canvasObj = state.placedObjects.get(itemId);
+        if (canvasObj) {
+            const { left, top } = kitchenToCanvas(placement.x, placement.y);
+            canvasObj.set({ left, top });
+            canvasObj.setCoords();
+            canvasObj.lastValidPosition = { x: placement.x, y: placement.y };
+            canvasObj.lastValidPlacement = { ...placement };
+            canvasObj.furnitureData = itemData || canvasObj.furnitureData;
+            if (canvasObj.furnitureData) {
+                canvasObj.furnitureData.position_x = placement.x;
+                canvasObj.furnitureData.position_y = placement.y;
+                canvasObj.furnitureData.is_placed_on_wall = placement.isPlacedOnWall;
+                canvasObj.furnitureData.wall_side = placement.wallSide;
+            }
+            state.canvas.requestRenderAll();
+        }
+        drawDimensionLines();
+        setSaveStatus('saved');
+    } catch (error) {
+        console.error('Failed to persist position:', error);
+        setSaveStatus('error');
+    }
+}
+
+async function updateFurniturePosition(id, x, y) {
+    const itemData = state.placedFurnitureData.get(id);
+    if (!itemData) return;
+    const targetX = typeof x === 'number' ? x : itemData.position_x;
+    const targetY = typeof y === 'number' ? y : itemData.position_y;
+    const dims = getEffectiveDimensions(itemData);
+    const placement = computePlacementSolution({
+        x: targetX,
+        y: targetY,
+        width: dims.width,
+        depth: dims.depth,
+        requiresWall: itemData.requires_wall,
+    }, { ignoreId: id });
+    if (!placement.valid) {
+        alert(placement.message);
+        return;
+    }
+    await persistObjectPosition(id, placement);
+    const canvasObj = state.placedObjects.get(id);
+    if (canvasObj) {
+        const { left, top } = kitchenToCanvas(placement.x, placement.y);
+        canvasObj.set({ left, top });
+        canvasObj.setCoords();
+        canvasObj.lastValidPosition = { x: placement.x, y: placement.y };
+        state.canvas.renderAll();
+    }
+        drawDimensionLines();
+}
+
+function renderPropertiesPanel(item) {
+    const furniture = getFurnitureMeta(item.furniture_object_id) || {};
+    
+    const html = `
+        <div class="property-section">
+            <h6>Object Info</h6>
+            <p class="mb-1"><strong>${item.furniture_name}</strong></p>
+            <span class="badge bg-secondary">${furniture.object_type_display || item.object_type}</span>
+        </div>
+        
+        <div class="property-section">
+            <h6>Position</h6>
+            <div class="property-group">
+                <label class="property-label">X Position (m)</label>
+                <input type="number" class="property-input" id="posX" 
+                       value="${item.position_x}" step="0.1" min="0" max="${state.kitchenData.width}">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Y Position (m)</label>
+                <input type="number" class="property-input" id="posY" 
+                       value="${item.position_y}" step="0.1" min="0" max="${state.kitchenData.length}">
+            </div>
+        </div>
+        
+        <div class="property-section">
+            <h6>Dimensions</h6>
+            <div class="property-group">
+                <label class="property-label">Width: <span id="widthValue">${item.width}m</span></label>
+                <input type="range" class="property-slider" id="widthSlider" 
+                       value="${item.width}" step="0.05" 
+                      min="${furniture.min_width ?? item.width}" max="${furniture.max_width ?? item.width}">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Depth: <span id="depthValue">${item.depth}m</span></label>
+                <input type="range" class="property-slider" id="depthSlider" 
+                       value="${item.depth}" step="0.05" 
+                      min="${furniture.min_depth ?? item.depth}" max="${furniture.max_depth ?? item.depth}">
+            </div>
+            <div class="property-group">
+                <label class="property-label">Height: <span id="heightValue">${item.height}m</span></label>
+                <input type="range" class="property-slider" id="heightSlider" 
+                       value="${item.height}" step="0.05" 
+                      min="${furniture.min_height ?? item.height}" max="${furniture.max_height ?? item.height}">
+            </div>
+        </div>
+        
+        <div class="property-section">
+            <h6>Rotation</h6>
+            <div class="rotation-buttons">
+                <button class="rotation-btn ${item.rotation_angle === 0 ? 'active' : ''}" data-angle="0">0°</button>
+                <button class="rotation-btn ${item.rotation_angle === 90 ? 'active' : ''}" data-angle="90">90°</button>
+                <button class="rotation-btn ${item.rotation_angle === 180 ? 'active' : ''}" data-angle="180">180°</button>
+                <button class="rotation-btn ${item.rotation_angle === 270 ? 'active' : ''}" data-angle="270">270°</button>
+            </div>
+        </div>
+        
+        <div class="property-section">
+            <div class="action-buttons">
+                <button class="action-btn btn-duplicate" id="duplicateBtn">
+                    <i class="bi bi-files"></i> Duplicate
+                </button>
+                <button class="action-btn btn-delete" id="deleteBtn">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('propertiesContent').innerHTML = html;
+    
+    // Attach event listeners
+    attachPropertyListeners(item.id);
+}
+
+function attachPropertyListeners(itemId) {
+    // Position inputs
+    document.getElementById('posX')?.addEventListener('change', (e) => {
+        updateFurniturePosition(itemId, parseFloat(e.target.value), null);
+    });
+    
+    document.getElementById('posY')?.addEventListener('change', (e) => {
+        updateFurniturePosition(itemId, null, parseFloat(e.target.value));
+    });
+    
+    // Size sliders
+    ['width', 'depth', 'height'].forEach(dim => {
+        const slider = document.getElementById(`${dim}Slider`);
+        const valueSpan = document.getElementById(`${dim}Value`);
+        
+        slider?.addEventListener('input', (e) => {
+            valueSpan.textContent = `${e.target.value}m`;
+        });
+        
+        slider?.addEventListener('change', async (e) => {
+            const data = { [dim]: parseFloat(e.target.value) };
+            await fetch(`/kitchen/api/placed-furniture/${itemId}/size/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify(data),
+            });
+            await loadPlacedFurniture();
+        });
+    });
+    
+    // Rotation buttons
+    document.querySelectorAll('.rotation-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const angle = parseInt(e.currentTarget.dataset.angle, 10);
+            await fetch(`/kitchen/api/placed-furniture/${itemId}/rotate/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ rotation_angle: angle }),
+            });
+            await loadPlacedFurniture();
+            const refreshed = state.placedObjects.get(itemId);
+            if (refreshed) {
+                state.canvas.setActiveObject(refreshed);
+                state.selectedObject = refreshed;
+                renderPropertiesPanel(refreshed.furnitureData);
+            }
+        });
+    });
+    
+    // Action buttons
+    document.getElementById('duplicateBtn')?.addEventListener('click', async () => {
+        await fetch(`/kitchen/api/placed-furniture/${itemId}/duplicate/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({}),
+        });
+        await loadPlacedFurniture();
+    });
+    
+    document.getElementById('deleteBtn')?.addEventListener('click', async () => {
+        if (confirm('Delete this furniture object?')) {
+            await fetch(`/kitchen/api/placed-furniture/${itemId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+            });
+            state.canvas.remove(state.selectedObject);
+            state.placedObjects.delete(itemId);
+             state.placedFurnitureData.delete(itemId);
+            state.selectedObject = null;
+            handleObjectDeselection();
+            drawDimensionLines();
+        }
+    });
+}
+
+function setupEventListeners() {
+    let currentFilter = '';
+    // Catalog search
+    document.getElementById('catalogSearch').addEventListener('input', (e) => {
+        const search = e.target.value;
+        loadFurnitureCatalog(currentFilter, search);
+    });
+    
+    // Catalog filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            currentFilter = e.currentTarget.dataset.type;
+            loadFurnitureCatalog(currentFilter);
+        });
+    });
+    
+    // Zoom controls
+    document.getElementById('zoomInBtn').addEventListener('click', () => {
+        const zoom = state.canvas.getZoom();
+        setCanvasZoom(zoom * 1.1);
+    });
+    
+    document.getElementById('zoomOutBtn').addEventListener('click', () => {
+        const zoom = state.canvas.getZoom();
+        setCanvasZoom(zoom / 1.1);
+    });
+    
+    document.getElementById('zoomSlider').addEventListener('input', (e) => {
+        setCanvasZoom(parseFloat(e.target.value));
+    });
+    
+    // Reset view
+    document.getElementById('resetViewBtn').addEventListener('click', () => {
+        state.canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+        setCanvasZoom(1);
+        state.canvas.renderAll();
+    });
+    
+    // Save button
+    document.getElementById('saveBtn').addEventListener('click', () => {
+        setSaveStatus('saved');
+        alert('Design saved!');
+    });
+
+    document.getElementById('generate3DToolbarBtn').addEventListener('click', triggerGenerate3D);
+}
+
+async function triggerGenerate3D() {
+    if (state.isGenerating3D) return;
+    state.isGenerating3D = true;
+    setGenerate3DLoading(true);
+    try {
+        const response = await fetch(`/kitchen/${state.kitchenData.id}/generate-3d/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to generate 3D assets');
+        }
+        alert(data.message || '3D model generated successfully!');
+    } catch (error) {
+        console.error('Generate 3D failed:', error);
+        alert('Generate 3D failed: ' + error.message);
+    } finally {
+        state.isGenerating3D = false;
+        setGenerate3DLoading(false);
+    }
+}
+
+function setGenerate3DLoading(isLoading) {
+    const btn = document.getElementById('generate3DToolbarBtn');
+    if (!btn) return;
+    if (!btn.dataset.defaultLabel) {
+        btn.dataset.defaultLabel = btn.innerHTML;
+    }
+    btn.disabled = isLoading;
+    if (isLoading) {
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Generating...';
+    } else {
+        btn.innerHTML = btn.dataset.defaultLabel;
+    }
+}
+
+function setSaveStatus(status) {
+    const statusEl = document.getElementById('saveStatus');
+    statusEl.className = `save-status ${status}`;
+    
+    if (status === 'saved') {
+        statusEl.innerHTML = '<i class="bi bi-check-circle"></i> Saved';
+    } else if (status === 'saving') {
+        statusEl.innerHTML = '<i class="bi bi-arrow-repeat"></i> Saving...';
+    } else if (status === 'error') {
+        statusEl.innerHTML = '<i class="bi bi-exclamation-circle"></i> Error';
+    }
+}
+
+
+function startAutoSave() {
+    if (state.autoSaveTimer) {
+        clearInterval(state.autoSaveTimer);
+        state.autoSaveTimer = null;
+    }
+    if (state.settings && state.settings.auto_save_interval > 0) {
+        state.autoSaveTimer = setInterval(() => {
+            console.log('Auto-saving...');
+            setSaveStatus('saving');
+            // Auto-save logic here
+            setTimeout(() => setSaveStatus('saved'), 500);
+        }, state.settings.auto_save_interval * 1000);
+    }
+}
+
+// Utility function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+async function persistDesignerSettings(updates) {
+    if (!updates || Object.keys(updates).length === 0) {
+        return;
+    }
+    try {
+        await fetch('/kitchen/api/designer-settings/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify(updates),
+        });
+    } catch (error) {
+        console.error('Failed to save designer settings:', error);
+    }
+}
+
+function handleSettingChange(key, value, options = {}) {
+    if (!state.settings) {
+        state.settings = {};
+    }
+    state.settings[key] = value;
+    persistDesignerSettings({ [key]: value });
+    if (options.refreshGuides) {
+        refreshCanvasGuides();
+    }
+    if (options.restartAutoSave) {
+        startAutoSave();
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    const key = e.key ? e.key.toLowerCase() : '';
+    // Delete - Remove selected
+    if (e.key === 'Delete' && state.selectedObject) {
+        e.preventDefault();
+        document.getElementById('deleteBtn')?.click();
+    }
+    
+    // Ctrl+D - Duplicate
+    if (e.ctrlKey && e.key === 'd' && state.selectedObject) {
+        e.preventDefault();
+        document.getElementById('duplicateBtn')?.click();
+    }
+    
+    // R - Rotate
+    if (e.key === 'r' && state.selectedObject) {
+        e.preventDefault();
+        const currentAngle = state.selectedObject.furnitureData.rotation_angle;
+        const newAngle = (currentAngle + 90) % 360;
+        document.querySelector(`[data-angle="${newAngle}"]`)?.click();
+    }
+    
+    // Esc - Deselect
+    if (e.key === 'Escape') {
+        state.canvas.discardActiveObject();
+        state.canvas.renderAll();
+    }
+    
+    // Ctrl+S - Save
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        document.getElementById('saveBtn').click();
+    }
+});
+</script>
+{% endblock %}

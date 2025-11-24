@@ -4,8 +4,59 @@
 {% block title %}Home page{% endblock title %}
 
 {% block content %}
-<div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
+{% comment %} <div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
   <img src="{% static 'images/lithium.png' %}" class="img-fluid" alt="Lithium logo"/>
   <p class="lead">A Django starter project with batteries.</p>
+</div> {% endcomment %}
+
+{% if user.is_authenticated %}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card shadow-sm">
+        <div class="card-body text-center p-5">
+          <h2 class="mb-3"><i class="bi bi-grid-3x3"></i> Kitchen Designer</h2>
+          <p class="lead mb-4">Design your dream kitchen with our interactive 3D tool</p>
+          <p class="text-muted mb-4">
+            Create custom kitchen layouts, add doors, windows, and other fixtures with precise measurements.
+            Visualize your design in an interactive 2D floor plan.
+          </p>
+          <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+            <a href="{% url 'kitchen:kitchen_create' %}" class="btn btn-primary btn-lg">
+              <i class="bi bi-plus-circle"></i> Create New Kitchen
+            </a>
+            <a href="{% url 'kitchen:kitchen_list' %}" class="btn btn-outline-secondary btn-lg">
+              <i class="bi bi-list"></i> View My Kitchens
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+{% else %}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card shadow-sm">
+        <div class="card-body text-center p-5">
+          <h2 class="mb-3"><i class="bi bi-grid-3x3"></i> Kitchen Designer</h2>
+          <p class="lead mb-4">Design your dream kitchen with our interactive 3D tool</p>
+          <p class="text-muted mb-4">
+            Sign up or log in to start designing your custom kitchen layouts!
+          </p>
+          <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+            <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
+              <i class="bi bi-person-plus"></i> Sign Up
+            </a>
+            <a href="{% url 'account_login' %}" class="btn btn-outline-secondary btn-lg">
+              <i class="bi bi-box-arrow-in-right"></i> Log In
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock content %}

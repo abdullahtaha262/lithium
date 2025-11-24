@@ -1,0 +1,59 @@
+{% extends "_base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}My Kitchens{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>My Kitchens</h1>
+    <a href="{% url 'kitchen:kitchen_create' %}" class="btn btn-primary">
+      <i class="bi bi-plus-circle"></i> Create New Kitchen
+    </a>
+  </div>
+
+  {% if kitchens %}
+    <div class="row">
+      {% for kitchen in kitchens %}
+        <div class="col-md-6 col-lg-4 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">{{ kitchen.name }}</h5>
+              <p class="card-text text-muted">
+                <small>Created: {{ kitchen.created_at|date:"M d, Y" }}</small>
+              </p>
+              <ul class="list-unstyled">
+                <li><strong>Dimensions:</strong></li>
+                <li>Length: {{ kitchen.length }} units</li>
+                <li>Width: {{ kitchen.width }} units</li>
+                <li>Height: {{ kitchen.height }} units</li>
+                <li class="mt-2"><strong>Objects:</strong> {{ kitchen.objects.count }}</li>
+              </ul>
+            </div>
+            <div class="card-footer bg-white">
+              <div class="d-flex gap-2">
+                <a href="{% url 'kitchen:kitchen_detail' kitchen.pk %}" class="btn btn-sm btn-outline-primary">
+                  View Details
+                </a>
+                <a href="{% url 'kitchen:kitchen_visualizer' kitchen.pk %}" class="btn btn-sm btn-outline-success">
+                  Visualizer
+                </a>
+                <a href="{% url 'kitchen:kitchen_update' kitchen.pk %}" class="btn btn-sm btn-outline-secondary">
+                  Edit
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info" role="alert">
+      <h4 class="alert-heading">No kitchens yet!</h4>
+      <p>Get started by creating your first kitchen design.</p>
+      <hr>
+      <a href="{% url 'kitchen:kitchen_create' %}" class="btn btn-primary">Create Your First Kitchen</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

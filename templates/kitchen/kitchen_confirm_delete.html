@@ -1,0 +1,29 @@
+{% extends "_base.html" %}
+
+{% block title %}Delete {{ kitchen.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+          <h3>Delete Kitchen</h3>
+        </div>
+        <div class="card-body">
+          <p>Are you sure you want to delete <strong>{{ kitchen.name }}</strong>?</p>
+          <p class="text-muted">This will also delete all {{ kitchen.objects.count }} object(s) associated with this kitchen.</p>
+          
+          <form method="post">
+            {% csrf_token %}
+            <div class="d-flex gap-2 mt-4">
+              <button type="submit" class="btn btn-danger">Yes, Delete</button>
+              <a href="{% url 'kitchen:kitchen_detail' kitchen.pk %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

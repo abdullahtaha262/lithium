@@ -1,0 +1,1165 @@
+{% extends "_base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ kitchen.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ kitchen.name }}</h1>
+    <div class="btn-group">
+      <a href="{% url 'kitchen:kitchen_designer' kitchen.pk %}" class="btn btn-info">
+        <i class="bi bi-palette"></i> Designer
+      </a>
+      <a href="{% url 'kitchen:kitchen_visualizer' kitchen.pk %}" class="btn btn-success">
+        <i class="bi bi-grid-3x3"></i> Visualizer
+      </a>
+      <button type="button" 
+              class="btn btn-primary"
+              onclick="generate3DModel({{ kitchen.pk }})"
+              id="generate-3d-btn">
+        <i class="bi bi-box"></i> 
+        {% if kitchen.has_3d_model %}
+          Regenerate 3D Model
+        {% else %}
+          Generate 3D Model
+        {% endif %}
+      </button>
+      <a href="{% url 'kitchen:kitchen_update' kitchen.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-pencil"></i> Edit
+      </a>
+      <a href="{% url 'kitchen:kitchen_delete' kitchen.pk %}" class="btn btn-outline-danger">
+        <i class="bi bi-trash"></i> Delete
+      </a>
+    </div>
+  </div>
+
+  <!-- 3D Generation Status Alert -->
+  <div id="generation-status" class="alert d-none" role="alert"></div>
+
+  {% if kitchen.has_3d_model %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle"></i> <strong>3D Model Available!</strong> 
+    View it in the <a href="{% url 'kitchen:kitchen_visualizer' kitchen.pk %}" class="alert-link">visualizer</a>.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endif %}
+
+  <div class="row" x-data="objectPlacer()" x-init="init()">
+    <!-- Add Kitchen Object Form -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">Add Kitchen Object</h5>
+        </div>
+        <div class="card-body">
+          <form method="post" 
+                action="{% url 'kitchen:add_kitchen_object' kitchen.pk %}"
+                hx-post="{% url 'kitchen:add_kitchen_object' kitchen.pk %}"
+                hx-target="#objects-list"
+                hx-swap="beforeend"
+                hx-on::after-request="this.reset(); resetForm()">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label for="id_object_type" class="form-label">Object Type</label>
+              <select name="object_type" class="form-select" id="id_object_type" x-model="objectType">
+                <option value="door">Door</option>
+                <option value="window">Window</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            
+            <div class="mb-3" id="description-field" x-show="objectType === 'other'">
+              <label for="id_description" class="form-label">Description (for 'Other')</label>
+              {{ object_form.description }}
+            </div>
+            
+            <div class="mb-3">
+              <label for="id_wall" class="form-label">Wall Selection</label>
+              <select name="wall" class="form-select" required id="id_wall" x-model="wall">
+                <option value="" selected>---------</option>
+                <option value="width_wall_1">Width Wall 1 (Front)</option>
+                <option value="width_wall_2">Width Wall 2 (Back)</option>
+                <option value="length_wall_1">Length Wall 1 (Left)</option>
+                <option value="length_wall_2">Length Wall 2 (Right)</option>
+              </select>
+              <small class="form-text text-muted d-block mt-1">
+                <span x-show="wall === 'width_wall_1'">Front wall ({{ kitchen.width }})</span>
+                <span x-show="wall === 'width_wall_2'">Back wall ({{ kitchen.width }})</span>
+                <span x-show="wall === 'length_wall_1'">Left wall ({{ kitchen.length }})</span>
+                <span x-show="wall === 'length_wall_2'">Right wall ({{ kitchen.length }})</span>
+              </small>
+            </div>
+            
+            <h6 class="mt-3 mb-2">Position on Wall</h6>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="id_distance_from_wall_start" class="form-label">
+                  Distance from start
+                  <span x-show="wallLength > 0" class="text-muted small">
+                    (0 - <span x-text="wallLength.toFixed(1)"></span>)
+                  </span>
+                </label>
+                <input type="number" name="distance_from_wall_start" value="0" step="0.1" class="form-control" required id="id_distance_from_wall_start" x-model.number="distanceFromStart">
+                <div x-show="distanceError" class="text-danger small mt-1">
+                  <span x-text="distanceError"></span>
+                </div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="id_object_width" class="form-label">
+                  Object width
+                  <span x-show="wallLength > 0" class="text-muted small">
+                    (max: <span x-text="maxWidth.toFixed(1)"></span>)
+                  </span>
+                </label>
+                <input type="number" name="object_width" value="0" step="0.1" class="form-control" required id="id_object_width" x-model.number="objectWidth">
+                <div x-show="widthError" class="text-danger small mt-1">
+                  <span x-text="widthError"></span>
+                </div>
+              </div>
+            </div>
+            
+            <h6 class="mt-3 mb-2">Height Position</h6>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="id_height_from_ground" class="form-label">
+                  Height from ground
+                  <span class="text-muted small">(0 - {{ kitchen.height }})</span>
+                </label>
+                <input type="number" name="height_from_ground" value="0" step="0.1" class="form-control" required id="id_height_from_ground" x-model.number="heightFromGround">
+                <div x-show="heightStartError" class="text-danger small mt-1">
+                  <span x-text="heightStartError"></span>
+                </div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="id_object_height" class="form-label">
+                  Object height
+                  <span x-show="maxObjectHeight > 0" class="text-muted small">
+                    (max: <span x-text="maxObjectHeight.toFixed(1)"></span>)
+                  </span>
+                </label>
+                <input type="number" name="object_height" value="0" step="0.1" class="form-control" required id="id_object_height" x-model.number="objectHeight">
+                <div x-show="heightError" class="text-danger small mt-1">
+                  <span x-text="heightError"></span>
+                </div>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100" :disabled="hasErrors">
+              <span x-show="!hasErrors">Add Object</span>
+              <span x-show="hasErrors">Fix Errors to Continue</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visual Preview -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">2D Floor Plan Preview</h5>
+        </div>
+        <div class="card-body">
+          
+          <!-- Zoom Controls -->
+          <div class="mb-3 d-flex align-items-center gap-3 p-3 bg-light rounded">
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" @click="zoomOut()">
+                <i class="bi bi-dash-circle"></i> Zoom Out
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary" @click="zoomIn()">
+                <i class="bi bi-plus-circle"></i> Zoom In
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetZoom()">
+                <i class="bi bi-arrow-clockwise"></i> Reset
+              </button>
+            </div>
+            <div class="flex-grow-1">
+              <label class="form-label small mb-1">Zoom Level: <strong x-text="scale.toFixed(1)"></strong>x <span class="text-muted">(optimal: <span x-text="optimalScale.toFixed(1)"></span>x)</span></label>
+              <input type="range" class="form-range" min="10" max="100" step="0.5" x-model.number="scale" @input="updateVisualization()">
+            </div>
+            <div class="text-muted small">
+              <i class="bi bi-mouse"></i> Scroll to zoom • Drag to pan
+            </div>
+          </div>
+
+          <!-- 2D Floor Plan View -->
+          <div class="mb-4">
+            <div class="position-relative bg-light p-3 rounded border" 
+                 @wheel="handleWheel($event)" 
+                 @mousedown="startPan($event)"
+                 @mousemove="doPan($event)"
+                 @mouseup="endPan()"
+                 @mouseleave="endPan()"
+                 style="user-select: none;"
+                 :style="{ cursor: isPanning ? 'grabbing' : 'grab' }">
+              <svg id="floor-plan-preview" viewBox="0 0 800 700" style="width: 100%; height: 700px; max-width: 100%; display: block; transition: opacity 0.2s;"
+                   :style="{ opacity: showObject ? 1 : 0.9, transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }">
+                <!-- Grid background -->
+                <defs>
+                  <pattern id="preview-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.5"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#preview-grid)" />
+
+                <!-- Kitchen floor (rectangle) -->
+                <rect x="200" 
+                      y="120" 
+                      :width="kitchenWidth * scale" 
+                      :height="kitchenLength * scale"
+                      fill="#f8f9fa" 
+                      stroke="#000" 
+                      stroke-width="3" />
+
+                <!-- Wall labels with highlighting -->
+                <g>
+                  <!-- Front Wall (width_wall_1) -->
+                  <rect x="200" 
+                        y="70" 
+                        :width="kitchenWidth * scale" 
+                        height="40"
+                        :fill="wall === 'width_wall_1' ? '#28a745' : '#6c757d'"
+                        :opacity="wall === 'width_wall_1' ? '0.3' : '0.1'"
+                        rx="5" />
+                  <text :x="200 + (kitchenWidth * scale / 2)" 
+                        y="95" 
+                        text-anchor="middle" 
+                        font-size="14"
+                        font-weight="bold"
+                        :fill="wall === 'width_wall_1' ? '#28a745' : '#666'">
+                    <tspan>Width (Front) - </tspan><tspan x-text="kitchenWidth.toFixed(1)"></tspan>
+                  </text>
+                  <!-- Front wall dimension markers -->
+                  <g x-show="wall === 'width_wall_1'">
+                    <circle cx="200" cy="120" r="4" fill="#666" />
+                    <text x="200" y="140" text-anchor="middle" font-size="10" fill="#666">0</text>
+                    <circle :cx="200 + kitchenWidth * scale" cy="120" r="4" fill="#666" />
+                    <text :x="200 + kitchenWidth * scale" y="140" text-anchor="middle" font-size="10" fill="#666">
+                      <tspan x-text="kitchenWidth.toFixed(1)"></tspan>
+                    </text>
+                  </g>
+                  
+                  <!-- Back Wall (width_wall_2) -->
+                  <rect x="200" 
+                        :y="120 + kitchenLength * scale + 10" 
+                        :width="kitchenWidth * scale" 
+                        height="40"
+                        :fill="wall === 'width_wall_2' ? '#28a745' : '#6c757d'"
+                        :opacity="wall === 'width_wall_2' ? '0.3' : '0.1'"
+                        rx="5" />
+                  <text :x="200 + (kitchenWidth * scale / 2)" 
+                        :y="120 + kitchenLength * scale + 35" 
+                        text-anchor="middle" 
+                        font-size="14"
+                        font-weight="bold"
+                        :fill="wall === 'width_wall_2' ? '#28a745' : '#666'">
+                    <tspan>Width (Back) - </tspan><tspan x-text="kitchenWidth.toFixed(1)"></tspan>
+                  </text>
+                  <!-- Back wall dimension markers -->
+                  <g x-show="wall === 'width_wall_2'">
+                    <circle cx="200" :cy="120 + kitchenLength * scale" r="4" fill="#666" />
+                    <text x="200" :y="120 + kitchenLength * scale - 12" text-anchor="middle" font-size="10" fill="#666">0</text>
+                    <circle :cx="200 + kitchenWidth * scale" :cy="120 + kitchenLength * scale" r="4" fill="#666" />
+                    <text :x="200 + kitchenWidth * scale" :y="120 + kitchenLength * scale - 12" text-anchor="middle" font-size="10" fill="#666">
+                      <tspan x-text="kitchenWidth.toFixed(1)"></tspan>
+                    </text>
+                  </g>
+                  
+                  <!-- Left Wall (length_wall_1) -->
+                  <text x="175" 
+                        :y="120 + (kitchenLength * scale / 2)" 
+                        text-anchor="end" 
+                        font-size="13"
+                        font-weight="bold"
+                        :fill="wall === 'length_wall_1' ? '#28a745' : '#666'">
+                    <tspan>Length (L)</tspan>
+                  </text>
+                  <text x="175" 
+                        :y="120 + (kitchenLength * scale / 2) + 18" 
+                        text-anchor="end" 
+                        font-size="11"
+                        :fill="wall === 'length_wall_1' ? '#28a745' : '#999'">
+                    <tspan x-text="kitchenLength.toFixed(1)"></tspan>
+                  </text>
+                  <!-- Left wall dimension markers -->
+                  <g x-show="wall === 'length_wall_1'">
+                    <circle cx="200" cy="120" r="4" fill="#666" />
+                    <text x="185" y="125" text-anchor="end" font-size="10" fill="#666">0</text>
+                    <circle cx="200" :cy="120 + kitchenLength * scale" r="4" fill="#666" />
+                    <text x="185" :y="120 + kitchenLength * scale + 5" text-anchor="end" font-size="10" fill="#666">
+                      <tspan x-text="kitchenLength.toFixed(1)"></tspan>
+                    </text>
+                  </g>
+                  
+                  <!-- Right Wall (length_wall_2) -->
+                  <text :x="200 + kitchenWidth * scale + 25" 
+                        :y="120 + (kitchenLength * scale / 2)" 
+                        text-anchor="start" 
+                        font-size="13"
+                        font-weight="bold"
+                        :fill="wall === 'length_wall_2' ? '#28a745' : '#666'">
+                    <tspan>Length (R)</tspan>
+                  </text>
+                  <text :x="200 + kitchenWidth * scale + 25" 
+                        :y="120 + (kitchenLength * scale / 2) + 18" 
+                        text-anchor="start" 
+                        font-size="11"
+                        :fill="wall === 'length_wall_2' ? '#28a745' : '#999'">
+                    <tspan x-text="kitchenLength.toFixed(1)"></tspan>
+                  </text>
+                  <!-- Right wall dimension markers -->
+                  <g x-show="wall === 'length_wall_2'">
+                    <circle :cx="200 + kitchenWidth * scale" cy="120" r="4" fill="#666" />
+                    <text :x="200 + kitchenWidth * scale + 15" y="125" text-anchor="start" font-size="10" fill="#666">0</text>
+                    <circle :cx="200 + kitchenWidth * scale" :cy="120 + kitchenLength * scale" r="4" fill="#666" />
+                    <text :x="200 + kitchenWidth * scale + 15" :y="120 + kitchenLength * scale + 5" text-anchor="start" font-size="10" fill="#666">
+                      <tspan x-text="kitchenLength.toFixed(1)"></tspan>
+                    </text>
+                  </g>
+                </g>
+
+                <!-- Existing Kitchen Objects -->
+                {% for object in objects %}
+                <g class="existing-object" opacity="0.7">
+                  {% if 'width_wall_1' in object.wall %}
+                    <!-- Object on width wall 1 (top, y=0) -->
+                    <rect :x="200 + {{ object.distance_from_wall_start }} * scale"
+                          y="115"
+                          :width="{{ object.object_width }} * scale"
+                          height="10"
+                          fill="{% if object.object_type == 'door' %}#28a745{% elif object.object_type == 'window' %}#17a2b8{% else %}#6c757d{% endif %}"
+                          stroke="#000"
+                          stroke-width="1" />
+                    <text :x="200 + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale"
+                          y="110"
+                          text-anchor="middle"
+                          font-size="10">
+                      {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
+                    </text>
+                  {% elif 'width_wall_2' in object.wall %}
+                    <!-- Object on width wall 2 (bottom, y=length) -->
+                    <rect :x="200 + {{ object.distance_from_wall_start }} * scale"
+                          :y="120 + kitchenLength * scale - 5"
+                          :width="{{ object.object_width }} * scale"
+                          height="10"
+                          fill="{% if object.object_type == 'door' %}#28a745{% elif object.object_type == 'window' %}#17a2b8{% else %}#6c757d{% endif %}"
+                          stroke="#000"
+                          stroke-width="1" />
+                    <text :x="200 + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale"
+                          :y="120 + kitchenLength * scale + 18"
+                          text-anchor="middle"
+                          font-size="10">
+                      {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
+                    </text>
+                  {% elif 'length_wall_1' in object.wall %}
+                    <!-- Object on length wall 1 (left, x=0) -->
+                    <rect x="195"
+                          :y="120 + {{ object.distance_from_wall_start }} * scale"
+                          width="10"
+                          :height="{{ object.object_width }} * scale"
+                          fill="{% if object.object_type == 'door' %}#28a745{% elif object.object_type == 'window' %}#17a2b8{% else %}#6c757d{% endif %}"
+                          stroke="#000"
+                          stroke-width="1" />
+                    <text x="180"
+                          :y="120 + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale + 4"
+                          text-anchor="end"
+                          font-size="10">
+                      {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
+                    </text>
+                  {% elif 'length_wall_2' in object.wall %}
+                    <!-- Object on length wall 2 (right, x=width) -->
+                    <rect :x="200 + kitchenWidth * scale - 5"
+                          :y="120 + {{ object.distance_from_wall_start }} * scale"
+                          width="10"
+                          :height="{{ object.object_width }} * scale"
+                          fill="{% if object.object_type == 'door' %}#28a745{% elif object.object_type == 'window' %}#17a2b8{% else %}#6c757d{% endif %}"
+                          stroke="#000"
+                          stroke-width="1" />
+                    <text :x="200 + kitchenWidth * scale + 20"
+                          :y="120 + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale + 4"
+                          text-anchor="start"
+                          font-size="10">
+                      {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
+                    </text>
+                  {% endif %}
+                </g>
+                {% endfor %}
+
+                <!-- NEW Object Preview (highlighted) -->
+                <g class="new-object-preview">
+                  <!-- Dynamic elements will be added here by JavaScript -->
+                </g>
+
+                <!-- Corner markers -->
+                <circle cx="200" cy="120" r="5" fill="red" />
+                <circle :cx="200 + kitchenWidth * scale" cy="120" r="5" fill="red" />
+                <circle :cx="200 + kitchenWidth * scale" :cy="120 + kitchenLength * scale" r="5" fill="red" />
+                <circle cx="200" :cy="120 + kitchenLength * scale" r="5" fill="red" />
+
+                <!-- Instructions -->
+                <text x-show="!wall" :x="200 + kitchenWidth * scale / 2" 
+                      :y="120 + kitchenLength * scale / 2" 
+                      text-anchor="middle" 
+                      font-size="16" 
+                      fill="#999"
+                      font-weight="bold">
+                  Select a wall above to place your object
+                </text>
+              </svg>
+            </div>
+            
+            <!-- Legend -->
+            <div class="mt-3 d-flex gap-3 justify-content-center flex-wrap">
+              <span class="badge bg-success">🚪 Door</span>
+              <span class="badge bg-info">🪟 Window</span>
+              <span class="badge bg-secondary">📦 Other</span>
+              <span class="badge" style="background-color: #FFD700; color: #000;">⭐ New Object (Preview)</span>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div x-show="wall" class="mt-3 p-3 rounded" :class="hasErrors ? 'bg-danger bg-opacity-10 border border-danger' : 'bg-success bg-opacity-10 border border-success'">
+            <h6 class="mb-2">
+              <span x-show="!hasErrors">✓ Object Summary:</span>
+              <span x-show="hasErrors">⚠ Please Fix Errors:</span>
+            </h6>
+            <div class="row small">
+              <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                  <li><strong>Wall:</strong> 
+                    <span x-show="wall === 'width_wall_1'">Width Wall 1 (Front)</span>
+                    <span x-show="wall === 'width_wall_2'">Width Wall 2 (Back)</span>
+                    <span x-show="wall === 'length_wall_1'">Length Wall 1 (Left)</span>
+                    <span x-show="wall === 'length_wall_2'">Length Wall 2 (Right)</span>
+                  </li>
+                  <li><strong>Position:</strong> <span x-text="distanceFromStart.toFixed(1)"></span> to <span x-text="(distanceFromStart + objectWidth).toFixed(1)"></span></li>
+                  <li><strong>Width:</strong> <span x-text="objectWidth.toFixed(1)"></span> units</li>
+                  <li x-show="distanceError" class="text-danger mt-1">❌ <span x-text="distanceError"></span></li>
+                  <li x-show="widthError" class="text-danger mt-1">❌ <span x-text="widthError"></span></li>
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                  <li><strong>Height Range:</strong> <span x-text="heightFromGround.toFixed(1)"></span> to <span x-text="(heightFromGround + objectHeight).toFixed(1)"></span></li>
+                  <li><strong>Height:</strong> <span x-text="objectHeight.toFixed(1)"></span> units</li>
+                  <li x-show="heightStartError" class="text-danger mt-1">❌ <span x-text="heightStartError"></span></li>
+                  <li x-show="heightError" class="text-danger mt-1">❌ <span x-text="heightError"></span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- divider -->
+  <hr>
+  <!-- Kitchen Objects List -->
+  <div class="row">
+        <!-- Kitchen Dimensions -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Kitchen Dimensions</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm">
+            <tr>
+                <th>Length (Y-axis):</th>
+                <td>{{ kitchen.length }}</td>
+            </tr>
+            <tr>
+                <th>Width (X-axis):</th>
+                <td>{{ kitchen.width }}</td>
+            </tr>
+            <tr>
+                <th>Height (Z-axis):</th>
+                <td>{{ kitchen.height }}</td>
+            </tr>
+            <tr>
+                <th>Wall Thickness:</th>
+                <td>{{ kitchen.wall_thickness }}</td>
+            </tr>
+            </table>
+            
+            <h6 class="mt-3">Floor Plan Points:</h6>
+            <ul class="list-unstyled small text-muted">
+            <li>Point 1: (0, 0)</li>
+            <li>Point 2: ({{ kitchen.width }}, 0)</li>
+            <li>Point 3: ({{ kitchen.width }}, {{ kitchen.length }})</li>
+            <li>Point 4: (0, {{ kitchen.length }})</li>
+            </ul>
+        </div>
+        </div>
+    </div>
+    <div class="col-md-8 mb-4">
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Kitchen Objects ({{ objects.count }})</h5>
+        </div>
+        <div class="card-body">
+          <div id="objects-list">
+            {% if objects %}
+              {% for object in objects %}
+                {% include 'kitchen/partials/object_item.html' %}
+              {% endfor %}
+            {% else %}
+              <p class="text-muted text-center">No objects added yet. Add at least one door to get started!</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <a href="{% url 'kitchen:kitchen_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Back to Kitchens
+    </a>
+  </div>
+</div>
+
+<script>
+  // Alpine.js component for validation and form display
+  function objectPlacer() {
+    return {
+      // Kitchen dimensions
+      kitchenWidth: {{ kitchen.width }},
+      kitchenLength: {{ kitchen.length }},
+      kitchenHeight: {{ kitchen.height }},
+      
+      // Form values
+      wall: '',
+      distanceFromStart: 0,
+      objectWidth: 0,
+      heightFromGround: 0,
+      objectHeight: 0,
+      objectType: 'door',
+      
+      // Simple scale for SVG
+      scale: 25,
+      minScale: 10,
+      maxScale: 100,
+      
+      // Pan state
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      panOffset: { x: 0, y: 0 },
+      
+      // Computed optimal scale based on kitchen dimensions
+      get optimalScale() {
+        // Available canvas space (considering margins and labels)
+        const availableWidth = 400;  // ~800 viewBox - margins
+        const availableHeight = 450; // ~700 viewBox - margins
+        
+        // Calculate scale that fits both dimensions
+        const scaleForWidth = availableWidth / this.kitchenWidth;
+        const scaleForHeight = availableHeight / this.kitchenLength;
+        
+        // Use the smaller scale to ensure everything fits
+        const calculatedScale = Math.min(scaleForWidth, scaleForHeight);
+        
+        // Clamp between min and max, round to nearest 0.5
+        return Math.max(this.minScale, Math.min(this.maxScale, Math.round(calculatedScale * 2) / 2));
+      },
+      
+      // Zoom methods
+      zoomIn() {
+        this.scale = Math.min(this.maxScale, this.scale + 1);
+        this.updateVisualization();
+      },
+      
+      zoomOut() {
+        this.scale = Math.max(this.minScale, this.scale - 1);
+        this.updateVisualization();
+      },
+      
+      resetZoom() {
+        this.scale = this.optimalScale;
+        this.resetPan();
+        this.updateVisualization();
+      },
+      
+      handleWheel(event) {
+        event.preventDefault();
+        const delta = event.deltaY > 0 ? -0.5 : 0.5;
+        this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
+        this.updateVisualization();
+      },
+      
+      // Pan methods
+      startPan(event) {
+        this.isPanning = true;
+        this.panStart = {
+          x: event.clientX - this.panOffset.x,
+          y: event.clientY - this.panOffset.y
+        };
+      },
+      
+      doPan(event) {
+        if (this.isPanning) {
+          this.panOffset = {
+            x: event.clientX - this.panStart.x,
+            y: event.clientY - this.panStart.y
+          };
+        }
+      },
+      
+      endPan() {
+        this.isPanning = false;
+      },
+      
+      resetPan() {
+        this.panOffset = { x: 0, y: 0 };
+      },
+      
+      updateVisualization() {
+        // Force SVG re-render with new scale
+        this.$nextTick(() => {
+          updateSVGPreview();
+        });
+      },
+      
+      // Computed properties
+      get wallLength() {
+        if (!this.wall) return 0;
+        if (this.wall.includes('width_wall')) {
+          return this.kitchenWidth;
+        } else {
+          return this.kitchenLength;
+        }
+      },
+      
+      get maxWidth() {
+        return Math.max(0, this.wallLength - this.distanceFromStart);
+      },
+      
+      get maxObjectHeight() {
+        return Math.max(0, this.kitchenHeight - this.heightFromGround);
+      },
+      
+      get objectColor() {
+        if (this.objectType === 'door') return '#28a745';
+        if (this.objectType === 'window') return '#17a2b8';
+        return '#6c757d';
+      },
+      
+      get showObject() {
+        return this.wall && 
+               this.distanceFromStart >= 0 && 
+               this.objectWidth > 0 &&
+               this.distanceFromStart + this.objectWidth <= this.wallLength &&
+               this.heightFromGround >= 0 &&
+               this.objectHeight > 0 &&
+               this.heightFromGround + this.objectHeight <= this.kitchenHeight;
+      },
+      
+      // Validation
+      get distanceError() {
+        if (this.distanceFromStart < 0) return 'Must be 0 or greater';
+        if (this.distanceFromStart > this.wallLength) return `Cannot exceed wall length (${this.wallLength.toFixed(1)})`;
+        return '';
+      },
+      
+      get widthError() {
+        if (this.objectWidth < 0) return 'Must be greater than 0';
+        if (this.distanceFromStart + this.objectWidth > this.wallLength) {
+          return `Object extends beyond wall (max: ${this.maxWidth.toFixed(1)})`;
+        }
+        return '';
+      },
+      
+      get heightStartError() {
+        if (this.heightFromGround < 0) return 'Must be 0 or greater';
+        if (this.heightFromGround > this.kitchenHeight) return `Cannot exceed kitchen height (${this.kitchenHeight})`;
+        return '';
+      },
+      
+      get heightError() {
+        if (this.objectHeight < 0) return 'Must be greater than 0';
+        if (this.heightFromGround + this.objectHeight > this.kitchenHeight) {
+          return `Object extends beyond ceiling (max: ${this.maxObjectHeight.toFixed(1)})`;
+        }
+        return '';
+      },
+      
+      get hasErrors() {
+        return !!(this.distanceError || this.widthError || this.heightStartError || this.heightError);
+      },
+      
+      init() {
+        // Auto-calculate optimal scale based on kitchen size
+        this.scale = this.optimalScale;
+        console.log(`Auto-scaled to ${this.scale}x for ${this.kitchenWidth}x${this.kitchenLength} kitchen`);
+        
+        // Set up event listeners for form inputs to update SVG in real-time
+        setTimeout(() => {
+          const inputs = ['id_wall', 'id_distance_from_wall_start', 'id_object_width', 'id_object_type'];
+          inputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+              input.addEventListener('input', () => updateSVGPreview());
+              input.addEventListener('change', () => updateSVGPreview());
+            }
+          });
+          // Initial update
+          updateSVGPreview();
+        }, 100);
+      },
+      
+      resetForm() {
+        this.wall = '';
+        this.distanceFromStart = 0;
+        this.objectWidth = 0;
+        this.heightFromGround = 0;
+        this.objectHeight = 0;
+        this.objectType = 'door';
+        updateSVGPreview();
+      }
+    };
+  }
+
+  // Standalone SVG update function
+  function updateSVGPreview() {
+    // Get scale from Alpine.js component if available, otherwise calculate optimal
+    const alpineComponent = document.querySelector('[x-data]')?.__x?.$data;
+    const KITCHEN_WIDTH = {{ kitchen.width }};
+    const KITCHEN_LENGTH = {{ kitchen.length }};
+    
+    // Calculate optimal scale if component not available
+    let defaultScale = 25;
+    if (!alpineComponent) {
+      const availableWidth = 400;
+      const availableHeight = 450;
+      const scaleForWidth = availableWidth / KITCHEN_WIDTH;
+      const scaleForHeight = availableHeight / KITCHEN_LENGTH;
+      defaultScale = Math.max(10, Math.min(100, Math.round(Math.min(scaleForWidth, scaleForHeight) * 2) / 2));
+    }
+    
+    const SCALE = alpineComponent?.scale || defaultScale;
+    const BASE_X = 200;
+    const BASE_Y = 120;
+    
+    // Read current form values
+    const wall = document.getElementById('id_wall')?.value || '';
+    const distStart = parseFloat(document.getElementById('id_distance_from_wall_start')?.value || 0);
+    const objWidth = parseFloat(document.getElementById('id_object_width')?.value || 0);
+    const objectType = document.getElementById('id_object_type')?.value || 'door';
+    
+    // Color based on type
+    const colorMap = { 'door': '#28a745', 'window': '#17a2b8', 'other': '#6c757d' };
+    const color = colorMap[objectType] || '#6c757d';
+    
+    // Get preview container
+    const previewGroup = document.querySelector('.new-object-preview');
+    if (!previewGroup) return;
+    
+    // Remove all old markers from all walls
+    const allWalls = ['width_wall_1', 'width_wall_2', 'length_wall_1', 'length_wall_2'];
+    allWalls.forEach(w => {
+      const elements = previewGroup.querySelectorAll(`[data-wall="${w}"]`);
+      elements.forEach(el => el.remove());
+    });
+    
+    // Show/hide based on validity
+    if (!wall || distStart < 0 || objWidth <= 0) {
+      previewGroup.style.display = 'none';
+      return;
+    }
+    previewGroup.style.display = '';
+    
+    // Update SVG based on wall selection
+    if (wall === 'width_wall_1') {
+      const startX = BASE_X + distStart * SCALE;
+      const endX = BASE_X + (distStart + objWidth) * SCALE;
+      
+      // Find and update the rect
+      let rect = document.querySelector('[data-wall="width_wall_1"][data-role="rect"]');
+      if (!rect) {
+        rect = document.createElement('rect');
+        rect.setAttribute('data-wall', 'width_wall_1');
+        rect.setAttribute('data-role', 'rect');
+        rect.setAttribute('y', '95');
+        rect.setAttribute('height', '10');
+        rect.setAttribute('stroke', '#FFD700');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('opacity', '0.9');
+        previewGroup.appendChild(rect);
+      }
+      rect.setAttribute('x', startX);
+      rect.setAttribute('width', objWidth * SCALE);
+      rect.setAttribute('fill', color);
+      
+      // Start circle
+      let startCircle = document.querySelector('[data-wall="width_wall_1"][data-role="start-circle"]');
+      if (!startCircle) {
+        startCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        startCircle.setAttribute('data-wall', 'width_wall_1');
+        startCircle.setAttribute('data-role', 'start-circle');
+        startCircle.setAttribute('r', '5');
+        startCircle.setAttribute('fill', '#0d6efd');
+        startCircle.setAttribute('stroke', '#fff');
+        startCircle.setAttribute('stroke-width', '2');
+        startCircle.setAttribute('cy', '100');
+        previewGroup.appendChild(startCircle);
+      }
+      startCircle.setAttribute('cx', startX);
+      
+      // End circle
+      let endCircle = document.querySelector('[data-wall="width_wall_1"][data-role="end-circle"]');
+      if (!endCircle) {
+        endCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        endCircle.setAttribute('data-wall', 'width_wall_1');
+        endCircle.setAttribute('data-role', 'end-circle');
+        endCircle.setAttribute('r', '5');
+        endCircle.setAttribute('fill', '#dc3545');
+        endCircle.setAttribute('stroke', '#fff');
+        endCircle.setAttribute('stroke-width', '2');
+        endCircle.setAttribute('cy', '100');
+        previewGroup.appendChild(endCircle);
+      }
+      endCircle.setAttribute('cx', endX);
+      
+      // Start text
+      let startText = document.querySelector('[data-wall="width_wall_1"][data-role="start-text"]');
+      if (!startText) {
+        startText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        startText.setAttribute('data-wall', 'width_wall_1');
+        startText.setAttribute('data-role', 'start-text');
+        startText.setAttribute('y', '85');
+        startText.setAttribute('text-anchor', 'end');
+        startText.setAttribute('font-size', '10');
+        startText.setAttribute('fill', '#0d6efd');
+        startText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(startText);
+      }
+      startText.setAttribute('x', startX - 15);
+      startText.textContent = `Start: ${distStart.toFixed(2)}`;
+      
+      // End text
+      let endText = document.querySelector('[data-wall="width_wall_1"][data-role="end-text"]');
+      if (!endText) {
+        endText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        endText.setAttribute('data-wall', 'width_wall_1');
+        endText.setAttribute('data-role', 'end-text');
+        endText.setAttribute('y', '85');
+        endText.setAttribute('text-anchor', 'start');
+        endText.setAttribute('font-size', '10');
+        endText.setAttribute('fill', '#dc3545');
+        endText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(endText);
+      }
+      endText.setAttribute('x', endX + 15);
+      endText.textContent = `End: ${(distStart + objWidth).toFixed(2)}`;
+      
+    } else if (wall === 'width_wall_2') {
+      const startX = BASE_X + distStart * SCALE;
+      const endX = BASE_X + (distStart + objWidth) * SCALE;
+      const wallY = BASE_Y + KITCHEN_LENGTH * SCALE;
+      
+      // Similar logic for wall 2 - create/update elements
+      let rect = document.querySelector('[data-wall="width_wall_2"][data-role="rect"]');
+      if (!rect) {
+        rect = document.createElement('rect');
+        rect.setAttribute('data-wall', 'width_wall_2');
+        rect.setAttribute('data-role', 'rect');
+        rect.setAttribute('height', '10');
+        rect.setAttribute('stroke', '#FFD700');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('opacity', '0.9');
+        previewGroup.appendChild(rect);
+      }
+      rect.setAttribute('x', startX);
+      rect.setAttribute('width', objWidth * SCALE);
+      rect.setAttribute('y', wallY - 5);
+      rect.setAttribute('fill', color);
+      
+      // Circles and text for wall 2
+      let startCircle = document.querySelector('[data-wall="width_wall_2"][data-role="start-circle"]');
+      if (!startCircle) {
+        startCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        startCircle.setAttribute('data-wall', 'width_wall_2');
+        startCircle.setAttribute('data-role', 'start-circle');
+        startCircle.setAttribute('r', '5');
+        startCircle.setAttribute('fill', '#0d6efd');
+        startCircle.setAttribute('stroke', '#fff');
+        startCircle.setAttribute('stroke-width', '2');
+        previewGroup.appendChild(startCircle);
+      }
+      startCircle.setAttribute('cx', startX);
+      startCircle.setAttribute('cy', wallY);
+      
+      let endCircle = document.querySelector('[data-wall="width_wall_2"][data-role="end-circle"]');
+      if (!endCircle) {
+        endCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        endCircle.setAttribute('data-wall', 'width_wall_2');
+        endCircle.setAttribute('data-role', 'end-circle');
+        endCircle.setAttribute('r', '5');
+        endCircle.setAttribute('fill', '#dc3545');
+        endCircle.setAttribute('stroke', '#fff');
+        endCircle.setAttribute('stroke-width', '2');
+        previewGroup.appendChild(endCircle);
+      }
+      endCircle.setAttribute('cx', endX);
+      endCircle.setAttribute('cy', wallY);
+      
+      let startText = document.querySelector('[data-wall="width_wall_2"][data-role="start-text"]');
+      if (!startText) {
+        startText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        startText.setAttribute('data-wall', 'width_wall_2');
+        startText.setAttribute('data-role', 'start-text');
+        startText.setAttribute('text-anchor', 'end');
+        startText.setAttribute('font-size', '10');
+        startText.setAttribute('fill', '#0d6efd');
+        startText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(startText);
+      }
+      startText.setAttribute('x', startX - 15);
+      startText.setAttribute('y', wallY + 25);
+      startText.textContent = `Start: ${distStart.toFixed(2)}`;
+      
+      let endText = document.querySelector('[data-wall="width_wall_2"][data-role="end-text"]');
+      if (!endText) {
+        endText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        endText.setAttribute('data-wall', 'width_wall_2');
+        endText.setAttribute('data-role', 'end-text');
+        endText.setAttribute('text-anchor', 'start');
+        endText.setAttribute('font-size', '10');
+        endText.setAttribute('fill', '#dc3545');
+        endText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(endText);
+      }
+      endText.setAttribute('x', endX + 15);
+      endText.setAttribute('y', wallY + 25);
+      endText.textContent = `End: ${(distStart + objWidth).toFixed(2)}`;
+      
+    } else if (wall === 'length_wall_1') {
+      const startY = BASE_Y + distStart * SCALE;
+      const endY = BASE_Y + (distStart + objWidth) * SCALE;
+      
+      let rect = document.querySelector('[data-wall="length_wall_1"][data-role="rect"]');
+      if (!rect) {
+        rect = document.createElement('rect');
+        rect.setAttribute('data-wall', 'length_wall_1');
+        rect.setAttribute('data-role', 'rect');
+        rect.setAttribute('x', '145');
+        rect.setAttribute('width', '10');
+        rect.setAttribute('stroke', '#FFD700');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('opacity', '0.9');
+        previewGroup.appendChild(rect);
+      }
+      rect.setAttribute('y', startY);
+      rect.setAttribute('height', objWidth * SCALE);
+      rect.setAttribute('fill', color);
+      
+      let startCircle = document.querySelector('[data-wall="length_wall_1"][data-role="start-circle"]');
+      if (!startCircle) {
+        startCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        startCircle.setAttribute('data-wall', 'length_wall_1');
+        startCircle.setAttribute('data-role', 'start-circle');
+        startCircle.setAttribute('cx', '150');
+        startCircle.setAttribute('r', '5');
+        startCircle.setAttribute('fill', '#0d6efd');
+        startCircle.setAttribute('stroke', '#fff');
+        startCircle.setAttribute('stroke-width', '2');
+        previewGroup.appendChild(startCircle);
+      }
+      startCircle.setAttribute('cy', startY);
+      
+      let endCircle = document.querySelector('[data-wall="length_wall_1"][data-role="end-circle"]');
+      if (!endCircle) {
+        endCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        endCircle.setAttribute('data-wall', 'length_wall_1');
+        endCircle.setAttribute('data-role', 'end-circle');
+        endCircle.setAttribute('cx', '150');
+        endCircle.setAttribute('r', '5');
+        endCircle.setAttribute('fill', '#dc3545');
+        endCircle.setAttribute('stroke', '#fff');
+        endCircle.setAttribute('stroke-width', '2');
+        previewGroup.appendChild(endCircle);
+      }
+      endCircle.setAttribute('cy', endY);
+      
+      let startText = document.querySelector('[data-wall="length_wall_1"][data-role="start-text"]');
+      if (!startText) {
+        startText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        startText.setAttribute('data-wall', 'length_wall_1');
+        startText.setAttribute('data-role', 'start-text');
+        startText.setAttribute('x', '125');
+        startText.setAttribute('text-anchor', 'end');
+        startText.setAttribute('font-size', '10');
+        startText.setAttribute('fill', '#0d6efd');
+        startText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(startText);
+      }
+      startText.setAttribute('y', startY + 3);
+      startText.textContent = `Start: ${distStart.toFixed(2)}`;
+      
+      let endText = document.querySelector('[data-wall="length_wall_1"][data-role="end-text"]');
+      if (!endText) {
+        endText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        endText.setAttribute('data-wall', 'length_wall_1');
+        endText.setAttribute('data-role', 'end-text');
+        endText.setAttribute('x', '125');
+        endText.setAttribute('text-anchor', 'end');
+        endText.setAttribute('font-size', '10');
+        endText.setAttribute('fill', '#dc3545');
+        endText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(endText);
+      }
+      endText.setAttribute('y', endY + 3);
+      endText.textContent = `End: ${(distStart + objWidth).toFixed(2)}`;
+      
+    } else if (wall === 'length_wall_2') {
+      const startY = BASE_Y + distStart * SCALE;
+      const endY = BASE_Y + (distStart + objWidth) * SCALE;
+      const wallX = BASE_X + KITCHEN_WIDTH * SCALE;
+      
+      let rect = document.querySelector('[data-wall="length_wall_2"][data-role="rect"]');
+      if (!rect) {
+        rect = document.createElement('rect');
+        rect.setAttribute('data-wall', 'length_wall_2');
+        rect.setAttribute('data-role', 'rect');
+        rect.setAttribute('width', '10');
+        rect.setAttribute('stroke', '#FFD700');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('opacity', '0.9');
+        previewGroup.appendChild(rect);
+      }
+      rect.setAttribute('x', wallX - 5);
+      rect.setAttribute('y', startY);
+      rect.setAttribute('height', objWidth * SCALE);
+      rect.setAttribute('fill', color);
+      
+      let startCircle = document.querySelector('[data-wall="length_wall_2"][data-role="start-circle"]');
+      if (!startCircle) {
+        startCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        startCircle.setAttribute('data-wall', 'length_wall_2');
+        startCircle.setAttribute('data-role', 'start-circle');
+        startCircle.setAttribute('r', '5');
+        startCircle.setAttribute('fill', '#0d6efd');
+        startCircle.setAttribute('stroke', '#fff');
+        startCircle.setAttribute('stroke-width', '2');
+        previewGroup.appendChild(startCircle);
+      }
+      startCircle.setAttribute('cx', wallX);
+      startCircle.setAttribute('cy', startY);
+      
+      let endCircle = document.querySelector('[data-wall="length_wall_2"][data-role="end-circle"]');
+      if (!endCircle) {
+        endCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        endCircle.setAttribute('data-wall', 'length_wall_2');
+        endCircle.setAttribute('data-role', 'end-circle');
+        endCircle.setAttribute('r', '5');
+        endCircle.setAttribute('fill', '#dc3545');
+        endCircle.setAttribute('stroke', '#fff');
+        endCircle.setAttribute('stroke-width', '2');
+        previewGroup.appendChild(endCircle);
+      }
+      endCircle.setAttribute('cx', wallX);
+      endCircle.setAttribute('cy', endY);
+      
+      let startText = document.querySelector('[data-wall="length_wall_2"][data-role="start-text"]');
+      if (!startText) {
+        startText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        startText.setAttribute('data-wall', 'length_wall_2');
+        startText.setAttribute('data-role', 'start-text');
+        startText.setAttribute('text-anchor', 'start');
+        startText.setAttribute('font-size', '10');
+        startText.setAttribute('fill', '#0d6efd');
+        startText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(startText);
+      }
+      startText.setAttribute('x', wallX + 25);
+      startText.setAttribute('y', startY + 3);
+      startText.textContent = `Start: ${distStart.toFixed(2)}`;
+      
+      let endText = document.querySelector('[data-wall="length_wall_2"][data-role="end-text"]');
+      if (!endText) {
+        endText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        endText.setAttribute('data-wall', 'length_wall_2');
+        endText.setAttribute('data-role', 'end-text');
+        endText.setAttribute('text-anchor', 'start');
+        endText.setAttribute('font-size', '10');
+        endText.setAttribute('fill', '#dc3545');
+        endText.setAttribute('font-weight', 'bold');
+        previewGroup.appendChild(endText);
+      }
+      endText.setAttribute('x', wallX + 25);
+      endText.setAttribute('y', endY + 3);
+      endText.textContent = `End: ${(distStart + objWidth).toFixed(2)}`;
+    }
+  }
+
+  // 3D Model Generation
+  function generate3DModel(kitchenId) {
+    const btn = document.getElementById('generate-3d-btn');
+    const statusDiv = document.getElementById('generation-status');
+    
+    // Disable button and show loading
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    
+    // Show status message
+    statusDiv.className = 'alert alert-info';
+    statusDiv.classList.remove('d-none');
+    statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Generating 3D model... This may take a minute.';
+    
+    // Make POST request
+    fetch(`/kitchen/${kitchenId}/generate-3d/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.message || 'Server returned an error');
+        }).catch(() => {
+          throw new Error(`Server error (${response.status})`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        statusDiv.className = 'alert alert-success alert-dismissible fade show';
+        statusDiv.innerHTML = `
+          <i class="bi bi-check-circle"></i> <strong>Success!</strong> 
+          ${data.message}
+          <a href="/kitchen/${kitchenId}/visualizer/" class="alert-link">View in visualizer</a>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        btn.innerHTML = '<i class="bi bi-box"></i> Regenerate 3D Model';
+      } else {
+        statusDiv.className = 'alert alert-danger alert-dismissible fade show';
+        statusDiv.innerHTML = `
+          <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${data.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        btn.innerHTML = '<i class="bi bi-box"></i> Generate 3D Model';
+      }
+    })
+    .catch(error => {
+      console.error('Generation error:', error);
+      statusDiv.className = 'alert alert-danger alert-dismissible fade show';
+      statusDiv.innerHTML = `
+        <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${error.message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      btn.innerHTML = '<i class="bi bi-box"></i> Generate 3D Model';
+    })
+    .finally(() => {
+      btn.disabled = false;
+    });
+  }
+</script>
+
+{% endblock %}
+

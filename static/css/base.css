@@ -5,6 +5,7 @@ html {
   min-height: 100%;
   font-size: 14px;
 }
+
 @media (min-width: 768px) {
   html {
     font-size: 16px;
@@ -12,7 +13,8 @@ html {
 }
 
 body {
-  margin-bottom: 60px; /* Margin bottom by footer height */
+  margin-bottom: 60px;
+  /* Margin bottom by footer height */
 }
 
 .container {
@@ -27,7 +29,265 @@ body {
   position: absolute;
   bottom: 0;
   width: 100%;
-  height: 60px; /* Set the fixed height of the footer here */
-  line-height: 60px; /* Vertically center the text there */
+  height: 60px;
+  /* Set the fixed height of the footer here */
+  line-height: 60px;
+  /* Vertically center the text there */
   background-color: #f5f5f5;
+}
+
+/* Kitchen Designer Styles
+-------------------------------------------------- */
+.kitchen-object {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kitchen-object.highlighted {
+  filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.9));
+  transform: scale(1.05);
+}
+
+.kitchen-object:hover {
+  filter: drop-shadow(0 0 5px rgba(13, 110, 253, 0.6));
+}
+
+.object-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.object-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.object-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.object-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+#kitchen-canvas {
+  background-color: #fafafa;
+}
+
+.wall-label {
+  font-size: 12px;
+  fill: #666;
+  font-weight: bold;
+  transition: fill 0.2s ease;
+}
+
+/* Form enhancements */
+.form-control:focus,
+.form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  transform: scale(1.01);
+  transition: all 0.2s ease;
+}
+
+.form-control,
+.form-select {
+  transition: all 0.2s ease;
+}
+
+/* Button enhancements */
+.btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* Range slider enhancements */
+.form-range {
+  transition: all 0.2s ease;
+}
+
+.form-range:hover {
+  opacity: 0.9;
+}
+
+.form-range::-webkit-slider-thumb {
+  transition: all 0.2s ease;
+}
+
+.form-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background-color: #0a58ca;
+}
+
+.form-range::-moz-range-thumb {
+  transition: all 0.2s ease;
+}
+
+.form-range::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  background-color: #0a58ca;
+}
+
+/* Card hover effects */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+  transition: background-color 0.2s ease;
+}
+
+/* Badge animations */
+.badge {
+  transition: all 0.2s ease;
+}
+
+.badge:hover {
+  transform: scale(1.05);
+}
+
+/* SVG Smooth Transitions */
+svg {
+  transition: opacity 0.3s ease;
+}
+
+svg rect,
+svg circle,
+svg text {
+  transition: all 0.2s ease;
+}
+
+/* Loading states */
+.htmx-request .htmx-indicator {
+  display: inline-block;
+}
+
+.htmx-indicator {
+  display: none;
+}
+
+/* Zoom controls */
+.zoom-controls {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Preview container */
+.preview-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.preview-container:active {
+  cursor: grabbing !important;
+}
+
+/* Interactive SVG elements */
+.new-object-preview rect,
+.new-object-preview circle,
+.new-object-preview text {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Smooth scrolling for all containers */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Error state animations */
+.text-danger {
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px);
+  }
+
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* Success state */
+.bg-success.bg-opacity-10 {
+  animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Tooltip-like feedback */
+.form-label .text-muted {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.form-label:hover .text-muted {
+  opacity: 1;
+}
+
+/* Improved focus indicators */
+input:focus,
+select:focus,
+button:focus {
+  outline: 2px solid rgba(13, 110, 253, 0.5);
+  outline-offset: 2px;
+}
+
+/* Spinner animation */
+.spinner-border {
+  animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+  to {
+    transform: rotate(360deg);
+  }
 }
