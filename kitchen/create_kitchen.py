@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import math
+from mathutils import Vector
 
 # --- Utility Functions (No Changes) ---
 
@@ -311,12 +312,45 @@ def place_objects(objects_config, base_path):
                 root_obj.parent = control_object
         
         # 4. Apply transformations from JSON to the single control_object.
-        #    All children will now follow these transformations.
         control_object.name = obj_data.get('name', 'PlacedObject')
-        control_object.location = obj_data['position']
         rotation_deg = obj_data['rotation_degrees']
         control_object.rotation_euler = [math.radians(deg) for deg in rotation_deg]
         control_object.scale = obj_data.get('scale', [1, 1, 1])
+        control_object.location = (0, 0, 0)
+        
+        # Force update to ensure matrix_world is correct after rotation/scale
+        bpy.context.view_layer.update()
+
+        # Calculate bounding box of all imported objects in world space
+        all_corners = []
+        for obj in imported_objects:
+            if obj.type == 'MESH':
+                # Get the 8 corners of the bounding box
+                bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                all_corners.extend(bbox)
+        
+        if not all_corners:
+            # Fallback if no meshes found
+            print(f"    -> No mesh geometry found in {obj_data['filepath']}. Using control object location.")
+            anchor_point = Vector((0, 0, 0))
+        else:
+            min_x = min(v.x for v in all_corners)
+            min_y = min(v.y for v in all_corners)
+            min_z = min(v.z for v in all_corners)
+            
+            max_x = max(v.x for v in all_corners)
+            max_y = max(v.y for v in all_corners)
+            max_z = max(v.z for v in all_corners)
+
+            anchor = obj_data.get('position_anchor', 'corner')
+            if anchor == 'center':
+                anchor_point = Vector(((min_x + max_x) / 2, (min_y + max_y) / 2, (min_z + max_z) / 2))
+            else:
+                anchor_point = Vector((min_x, min_y, min_z))
+
+        target_point = Vector(obj_data['position'])
+        offset = target_point - anchor_point
+        control_object.location = offset
 
 # --- Main Execution (No Changes) ---
 

@@ -613,32 +613,19 @@ class PlacedFurniture(models.Model):
         glb_path = None
         if self.furniture_object.glb_file:
             glb_path = self.furniture_object.glb_file.path
-        width = float(self.width)
-        depth = float(self.depth)
-        height = float(self.height)
-        rotation = self.rotation_angle % 360
-        if rotation in (90, 270):
-            footprint_x = depth
-            footprint_y = width
-        else:
-            footprint_x = width
-            footprint_y = depth
-        center_x = float(self.position_x) + footprint_x / 2.0
-        center_y = float(self.position_y) + footprint_y / 2.0
-        center_z = float(self.position_z) + height / 2.0
         return {
             'name': self.furniture_object.name,
             'filepath': glb_path,
             'position': [
-                center_x,
-                center_y,
-                center_z
+                float(self.position_x),
+                float(self.position_y),
+                float(self.position_z)
             ],
             'rotation_degrees': [0, 0, float(self.rotation_angle)],
             'scale': [
-                width / float(self.furniture_object.default_width),
-                depth / float(self.furniture_object.default_depth),
-                height / float(self.furniture_object.default_height)
+                float(self.width) / float(self.furniture_object.default_width),
+                float(self.depth) / float(self.furniture_object.default_depth),
+                float(self.height) / float(self.furniture_object.default_height)
             ]
         }
 
