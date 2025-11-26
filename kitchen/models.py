@@ -613,15 +613,25 @@ class PlacedFurniture(models.Model):
         glb_path = None
         if self.furniture_object.glb_file:
             glb_path = self.furniture_object.glb_file.path
+        
+        # Apply coordinate transformation to match 3D perspective
+        # Mirror X coordinate (horizontal flip) to fix front/back wall placement
+        kitchen_width = float(self.kitchen.width)
+        transformed_x = kitchen_width - float(self.position_x) - float(self.width)
+        
+        # When we mirror the X position, we need to negate the rotation angle
+        # to maintain correct orientation (mirror the facing direction)
+        transformed_rotation = -float(self.rotation_angle) % 360
+        
         return {
             'name': self.furniture_object.name,
             'filepath': glb_path,
             'position': [
-                float(self.position_x),
+                transformed_x,
                 float(self.position_y),
                 float(self.position_z)
             ],
-            'rotation_degrees': [0, 0, float(self.rotation_angle)],
+            'rotation_degrees': [0, 0, transformed_rotation],
             'scale': [
                 float(self.width) / float(self.furniture_object.default_width),
                 float(self.depth) / float(self.furniture_object.default_depth),

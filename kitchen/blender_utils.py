@@ -18,11 +18,12 @@ def kitchen_to_blender_json(kitchen):
         dict: Configuration dictionary for Blender script
     """
     # Map our wall choices to indices (0=Back, 1=Right, 2=Front, 3=Left)
+    # SWAPPED: Right and Left are swapped to match user perspective
     wall_mapping = {
         'width_wall_2': 0,  # Back wall (at Y=length)
-        'length_wall_2': 1,  # Right wall (at X=width)
+        'length_wall_2': 3,  # Right wall -> mapped to Left index (swapped)
         'width_wall_1': 2,   # Front wall (at Y=0)
-        'length_wall_1': 3,  # Left wall (at X=0)
+        'length_wall_1': 1,  # Left wall -> mapped to Right index (swapped)
     }
     
     # Kitchen dimensions

@@ -2,304 +2,281 @@
 
 {% block title %}{{ kitchen.name }} - 3D Visualizer{% endblock %}
 
+{% block css %}
+{{ block.super }}
+<style>
+  .visualizer-full-width {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    padding: 0;
+    background: #f8f9fa;
+  }
+  
+  .visualizer-container {
+    display: flex;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+  }
+  
+  .visualizer-sidebar {
+    width: 320px;
+    background: white;
+    border-right: 1px solid #dee2e6;
+    overflow-y: auto;
+    flex-shrink: 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+  }
+  
+  .visualizer-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: linear-gradient(to bottom, #1a2332 0%, #2d4a6e 100%);
+  }
+  
+  .visualizer-toolbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .visualizer-canvas {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .object-list-item {
+    cursor: default;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+  }
+  
+  .object-list-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: #0d6efd;
+  }
+  
+  .info-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  
+  model-viewer {
+    --progress-bar-color: #0d6efd;
+    --progress-bar-height: 4px;
+  }
+  
+  model-viewer::part(default-progress-bar) {
+    display: none;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4" x-data="kitchenVisualizer()">
-  <div class="row">
-    <!-- Controls Panel -->
-    <div class="col-md-3">
-      <div class="card sticky-top" style="top: 20px;">
-        <div class="card-header bg-primary text-white">
-          <h5 class="mb-0">{{ kitchen.name }}</h5>
+<div class="visualizer-full-width">
+<div class="visualizer-container" x-data="kitchenVisualizer()">
+  <!-- Sidebar -->
+  <div class="visualizer-sidebar">
+    <div class="p-4">
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h5 class="mb-1">{{ kitchen.name }}</h5>
+            <small class="text-muted"><i class="bi bi-box"></i> 3D Visualizer</small>
+          </div>
+          {% if kitchen.has_3d_model %}
+          <span class="badge bg-success"><i class="bi bi-check-circle"></i> Ready</span>
+          {% else %}
+          <span class="badge bg-warning"><i class="bi bi-exclamation-triangle"></i> Pending</span>
+          {% endif %}
         </div>
-        <div class="card-body">
-          <h6>Dimensions</h6>
-          <ul class="list-unstyled small">
-            <li><strong>Length (Y):</strong> {{ kitchen.length }}</li>
-            <li><strong>Width (X):</strong> {{ kitchen.width }}</li>
-            <li><strong>Height (Z):</strong> {{ kitchen.height }}</li>
-          </ul>
-
-          <hr>
-
-          <h6>View Mode</h6>
-          <div class="mb-3">
-            <select class="form-select form-select-sm" x-model="viewMode" @change="switchView()">
-              <option value="2d">2D Floor Plan</option>
-              <option value="3d" {% if not kitchen.has_3d_model %}disabled{% endif %}>
-                3D Model {% if not kitchen.has_3d_model %}(Not Generated){% endif %}
-              </option>
-            </select>
-            {% if not kitchen.has_3d_model %}
-            <small class="text-muted d-block mt-1">
-              Generate a 3D model to enable 3D view
-            </small>
-            {% endif %}
+      </div>
+      
+      <hr>
+      
+      <div class="mb-4">
+        <h6 class="mb-3"><i class="bi bi-rulers"></i> Dimensions</h6>
+        <div class="d-flex flex-column gap-2">
+          <div class="info-badge bg-light">
+            <i class="bi bi-arrows-expand"></i>
+            <span><strong>Width:</strong> {{ kitchen.width }}m</span>
           </div>
-
-          <div x-show="viewMode === '2d'">
-            <h6>View Controls</h6>
-            <div class="mb-3">
-              <div class="d-flex gap-2 mb-2">
-                <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" @click="zoomIn()">
-                  <i class="bi bi-plus-circle"></i>
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" @click="zoomOut()">
-                  <i class="bi bi-dash-circle"></i>
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" @click="resetView()">
-                  <i class="bi bi-arrow-clockwise"></i>
-                </button>
-              </div>
-              <label class="form-label small">Zoom: <strong x-text="scale.toFixed(1)"></strong>x <span class="text-muted">(optimal: <span x-text="optimalScale.toFixed(1)"></span>x)</span></label>
-              <input type="range" class="form-range" min="5" max="100" step="0.5" 
-                     x-model.number="scale" @input="updateVisualization()">
-              <small class="text-muted d-block mt-1">Scroll to zoom, drag to pan</small>
-            </div>
+          <div class="info-badge bg-light">
+            <i class="bi bi-arrows-vertical"></i>
+            <span><strong>Length:</strong> {{ kitchen.length }}m</span>
           </div>
-
-          <hr>
-
-          <h6>Objects ({{ objects.count }})</h6>
-          <div class="object-list" style="max-height: 300px; overflow-y: auto;">
-            {% for object in objects %}
-            <div class="small mb-2 p-2 border rounded" 
-                 @mouseenter="highlightObject = {{ object.id }}" 
-                 @mouseleave="highlightObject = null">
-              <div class="d-flex align-items-center">
-                <span class="me-2">
-                  {% if object.object_type == 'door' %}🚪
-                  {% elif object.object_type == 'window' %}🪟
-                  {% else %}📦{% endif %}
-                </span>
-                <div class="flex-grow-1">
-                  <strong>{{ object.get_object_type_display }}</strong>
-                  <br>
-                  <span class="text-muted" style="font-size: 0.75rem;">
-                    {{ object.get_wall_display }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
+          <div class="info-badge bg-light">
+            <i class="bi bi-arrow-up"></i>
+            <span><strong>Height:</strong> {{ kitchen.height }}m</span>
           </div>
-
-          <hr>
-
-          <div class="d-grid gap-2">
-            <a href="{% url 'kitchen:kitchen_detail' kitchen.pk %}" class="btn btn-sm btn-outline-secondary">
-              Back to Details
-            </a>
-            <a href="{% url 'kitchen:kitchen_list' %}" class="btn btn-sm btn-outline-secondary">
-              All Kitchens
-            </a>
+          <div class="info-badge bg-primary text-white">
+            <i class="bi bi-bounding-box"></i>
+            <span><strong>Volume:</strong> {{ kitchen.width|floatformat:1 }}×{{ kitchen.length|floatformat:1 }}×{{ kitchen.height|floatformat:1 }}m³</span>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Visualization Canvas -->
-    <div class="col-md-9">
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0">
-            <span x-show="viewMode === '2d'">2D Floor Plan</span>
-            <span x-show="viewMode === '3d'">3D Model View</span>
-          </h5>
-        </div>
-        <div class="card-body p-0">
-          
-          <!-- 2D SVG View -->
-          <div x-show="viewMode === '2d'" 
-               class="position-relative bg-light" 
-               style="min-height: 600px; cursor: grab; overflow: hidden; user-select: none;"
-               @wheel="handleWheel($event)"
-               @mousedown="startPan($event)"
-               @mousemove="doPan($event)"
-               @mouseup="endPan()"
-               @mouseleave="endPan()"
-               :style="{ cursor: isPanning ? 'grabbing' : 'grab' }">
-            <svg id="kitchen-canvas" 
-                 width="100%" 
-                 height="600" 
-                 style="border: 1px solid #ddd; transition: opacity 0.2s;">
-              
-              <!-- Grid background -->
-              <defs>
-                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.5"/>
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-
-              <!-- Kitchen floor (rectangle) -->
-              <rect :x="offset.x" 
-                    :y="offset.y" 
-                    :width="{{ kitchen.width }} * scale" 
-                    :height="{{ kitchen.length }} * scale"
-                    fill="#f8f9fa" 
-                    stroke="#000" 
-                    stroke-width="2" />
-
-              <!-- Wall labels -->
-              <text :x="offset.x + ({{ kitchen.width }} * scale / 2)" 
-                    :y="offset.y - 25" 
-                    text-anchor="middle" 
-                    class="wall-label">
-                Width (Front)
-              </text>
-              
-              <text :x="offset.x + ({{ kitchen.width }} * scale / 2)" 
-                    :y="offset.y + {{ kitchen.length }} * scale + 35" 
-                    text-anchor="middle" 
-                    class="wall-label">
-                Width (Back)
-              </text>
-              
-              <text :x="offset.x - 10" 
-                    :y="offset.y + ({{ kitchen.length }} * scale / 2)" 
-                    text-anchor="end" 
-                    class="wall-label">
-                Length (Left)
-              </text>
-              
-              <text :x="offset.x + {{ kitchen.width }} * scale + 10" 
-                    :y="offset.y + ({{ kitchen.length }} * scale / 2)" 
-                    text-anchor="start" 
-                    class="wall-label">
-                Length (Right)
-              </text>
-
-              <!-- Kitchen Objects -->
-              {% for object in objects %}
-              <g class="kitchen-object" 
-                 :class="{ 'highlighted': highlightObject === {{ object.id }} }">
-                {% if 'width_wall_1' in object.wall %}
-                  <!-- Object on width wall 1 (top, y=0) -->
-                  <rect :x="offset.x + {{ object.distance_from_wall_start }} * scale"
-                        :y="offset.y - 5"
-                        :width="{{ object.object_width }} * scale"
-                        height="10"
-                        :fill="highlightObject === {{ object.id }} ? '#ffc107' : '{% if object.object_type == "door" %}#28a745{% elif object.object_type == "window" %}#17a2b8{% else %}#6c757d{% endif %}'"
-                        stroke="#000"
-                        stroke-width="1" />
-                  <text :x="offset.x + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale"
-                        :y="offset.y - 8"
-                        text-anchor="middle"
-                        font-size="10">
-                    {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
-                  </text>
-                {% elif 'width_wall_2' in object.wall %}
-                  <!-- Object on width wall 2 (bottom, y=length) -->
-                  <rect :x="offset.x + {{ object.distance_from_wall_start }} * scale"
-                        :y="offset.y + {{ kitchen.length }} * scale - 5"
-                        :width="{{ object.object_width }} * scale"
-                        height="10"
-                        :fill="highlightObject === {{ object.id }} ? '#ffc107' : '{% if object.object_type == "door" %}#28a745{% elif object.object_type == "window" %}#17a2b8{% else %}#6c757d{% endif %}'"
-                        stroke="#000"
-                        stroke-width="1" />
-                  <text :x="offset.x + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale"
-                        :y="offset.y + {{ kitchen.length }} * scale + 15"
-                        text-anchor="middle"
-                        font-size="10">
-                    {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
-                  </text>
-                {% elif 'length_wall_1' in object.wall %}
-                  <!-- Object on length wall 1 (left, x=0) -->
-                  <rect :x="offset.x - 5"
-                        :y="offset.y + {{ object.distance_from_wall_start }} * scale"
-                        width="10"
-                        :height="{{ object.object_width }} * scale"
-                        :fill="highlightObject === {{ object.id }} ? '#ffc107' : '{% if object.object_type == "door" %}#28a745{% elif object.object_type == "window" %}#17a2b8{% else %}#6c757d{% endif %}'"
-                        stroke="#000"
-                        stroke-width="1" />
-                  <text :x="offset.x - 15"
-                        :y="offset.y + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale + 3"
-                        text-anchor="end"
-                        font-size="10">
-                    {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
-                  </text>
-                {% elif 'length_wall_2' in object.wall %}
-                  <!-- Object on length wall 2 (right, x=width) -->
-                  <rect :x="offset.x + {{ kitchen.width }} * scale - 5"
-                        :y="offset.y + {{ object.distance_from_wall_start }} * scale"
-                        width="10"
-                        :height="{{ object.object_width }} * scale"
-                        :fill="highlightObject === {{ object.id }} ? '#ffc107' : '{% if object.object_type == "door" %}#28a745{% elif object.object_type == "window" %}#17a2b8{% else %}#6c757d{% endif %}'"
-                        stroke="#000"
-                        stroke-width="1" />
-                  <text :x="offset.x + {{ kitchen.width }} * scale + 15"
-                        :y="offset.y + ({{ object.distance_from_wall_start }} + {{ object.object_width }}/2) * scale + 3"
-                        text-anchor="start"
-                        font-size="10">
-                    {% if object.object_type == 'door' %}🚪{% elif object.object_type == 'window' %}🪟{% else %}📦{% endif %}
-                  </text>
-                {% endif %}
-              </g>
-              {% endfor %}
-
-              <!-- Corner markers -->
-              <circle :cx="offset.x" :cy="offset.y" r="3" fill="red" />
-              <circle :cx="offset.x + {{ kitchen.width }} * scale" :cy="offset.y" r="3" fill="red" />
-              <circle :cx="offset.x + {{ kitchen.width }} * scale" :cy="offset.y + {{ kitchen.length }} * scale" r="3" fill="red" />
-              <circle :cx="offset.x" :cy="offset.y + {{ kitchen.length }} * scale" r="3" fill="red" />
-
-              <!-- Dimension lines -->
-              <g class="dimension-lines" stroke="#666" stroke-width="1" fill="none">
-                <!-- Width dimension -->
-                <line :x1="offset.x" 
-                      :y1="offset.y + {{ kitchen.length }} * scale + 40"
-                      :x2="offset.x + {{ kitchen.width }} * scale" 
-                      :y2="offset.y + {{ kitchen.length }} * scale + 40" />
-                <text :x="offset.x + ({{ kitchen.width }} * scale / 2)" 
-                      :y="offset.y + {{ kitchen.length }} * scale + 55"
-                      text-anchor="middle"
-                      font-size="12"
-                      fill="#666">
-                  Width: {{ kitchen.width }} units
-                </text>
-
-                <!-- Length dimension -->
-                <line :x1="offset.x + {{ kitchen.width }} * scale + 120"
-                      :y1="offset.y"
-                      :x2="offset.x + {{ kitchen.width }} * scale + 120"
-                      :y2="offset.y + {{ kitchen.length }} * scale" />
-                <text :x="offset.x + {{ kitchen.width }} * scale + 140"
-                      :y="offset.y + ({{ kitchen.length }} * scale / 2)"
-                      text-anchor="start"
-                      font-size="12"
-                      fill="#666"
-                      transform="rotate(90, :x, :y)">
-                  Length: {{ kitchen.length }} units
-                </text>
-              </g>
-            </svg>
+      <hr>
+      
+      <h6 class="mb-3"><i class="bi bi-door-open"></i> Wall Objects ({{ objects.count }})</h6>
+      <div class="object-list" style="max-height: 220px; overflow-y: auto;">
+        {% if objects.count > 0 %}
+        {% for object in objects %}
+        <div class="object-list-item small mb-2 p-2 border rounded">
+          <div class="d-flex align-items-start">
+            <span class="me-2 fs-5">
+              {% if object.object_type == 'door' %}🚪
+              {% elif object.object_type == 'window' %}🪟
+              {% else %}📦{% endif %}
+            </span>
+            <div class="flex-grow-1">
+              <div class="fw-bold">{{ object.get_object_type_display }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">
+                <i class="bi bi-arrow-right-short"></i> {{ object.get_wall_display }}<br>
+                <i class="bi bi-rulers"></i> {{ object.object_width }}m × {{ object.object_height }}m
+              </div>
+            </div>
           </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-inbox"></i>
+          <p class="mb-0 small">No objects added</p>
+        </div>
+        {% endif %}
+      </div>
+      
+      <hr>
+      
+      <h6 class="mb-3"><i class="bi bi-box-seam"></i> Furniture ({{ placed_furniture.count }})</h6>
+      <div class="object-list" style="max-height: 220px; overflow-y: auto;">
+        {% if placed_furniture.count > 0 %}
+        {% for item in placed_furniture %}
+        <div class="object-list-item small mb-2 p-2 border rounded">
+          <div class="d-flex align-items-start">
+            <span class="me-2 fs-5">🪑</span>
+            <div class="flex-grow-1">
+              <div class="fw-bold">{{ item.furniture_object.name }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">
+                <i class="bi bi-rulers"></i> {{ item.width }}×{{ item.depth }}×{{ item.height }}m<br>
+                <i class="bi bi-compass"></i> Rotation: {{ item.rotation_angle }}°
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-inbox"></i>
+          <p class="mb-0 small">No furniture placed</p>
+        </div>
+        {% endif %}
+      </div>
+      
+      <hr>
+      
+      <div class="d-grid gap-2">
+        <a href="{% url 'kitchen:kitchen_designer' kitchen.pk %}" class="btn btn-sm btn-primary">
+          <i class="bi bi-palette"></i> Open Designer
+        </a>
+        <a href="{% url 'kitchen:kitchen_detail' kitchen.pk %}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i> Back to Details
+        </a>
+      </div>
+    </div>
+  </div>
 
+  <!-- Main Content -->
+  <div class="visualizer-main">
+    <!-- Toolbar -->
+    <div class="visualizer-toolbar">
+      <div class="d-flex align-items-center gap-3">
+        <h5 class="mb-0">
+          <i class="bi bi-box"></i> 3D Model View
+        </h5>
+        <div class="d-flex gap-2">
+          <span class="info-badge bg-light">
+            <i class="bi bi-layers"></i> Objects: {{ objects.count }}
+          </span>
+          <span class="info-badge bg-light">
+            <i class="bi bi-box-seam"></i> Furniture: {{ placed_furniture.count }}
+          </span>
+        </div>
+      </div>
+      
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetCamera()" title="Reset Camera">
+          <i class="bi bi-arrow-clockwise"></i> Reset View
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" @click="toggleAutoRotate()" title="Toggle Auto-Rotate">
+          <i class="bi bi-arrow-repeat" :class="{ 'text-primary': autoRotate }"></i>
+          <span x-text="autoRotate ? 'Auto-Rotate: ON' : 'Auto-Rotate: OFF'"></span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Canvas Area -->
+    <div class="visualizer-canvas">
+          
           <!-- 3D Model View -->
-          <div x-show="viewMode === '3d'" class="position-relative" style="min-height: 700px; background: linear-gradient(to bottom, #224365ff 0%, #185e93ff 100%);">
+          <div class="position-relative h-100">
             {% if kitchen.has_3d_model %}
+              <!-- Model Loading Indicator -->
+              <div x-show="!modelLoaded" class="position-absolute top-50 start-50 translate-middle text-white text-center" style="z-index: 10;">
+                <div class="spinner-border mb-3" role="status" style="width: 3rem; height: 3rem;">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mb-0">Loading 3D Model...</p>
+              </div>
+              
               <model-viewer
+                id="kitchenModel"
                 src="{{ kitchen.model_file.url }}"
                 alt="3D Kitchen Model"
-                auto-rotate
+                :auto-rotate="autoRotate"
                 camera-controls
                 shadow-intensity="1"
                 shadow-softness="0.4"
-                style="width: 100%; height: 700px;"
+                style="width: 100%; height: 100%;"
                 ar-placement="wall"
                 ar
-                camera-controls
                 ar-modes="webxr scene-viewer quick-look"
                 environment-image="legacy"
                 exposure="1"
                 camera-orbit="45deg 75deg auto"
                 min-camera-orbit="auto auto 5m"
                 max-camera-orbit="auto auto 80m"
-                field-of-view="35deg">
+                field-of-view="35deg"
+                @load="modelLoaded = true">
 
                 <button slot="ar-button" class="btn btn-primary" style="position: absolute; bottom: 16px; right: 16px;">
                   <i class="bi bi-badge-ar"></i> View in AR
                 </button>
+                
+                <!-- Camera Controls Info -->
+                <div class="position-absolute bottom-0 start-0 m-3 p-3 bg-white rounded shadow-sm" style="max-width: 250px; font-size: 0.85rem;">
+                  <div class="fw-bold mb-2"><i class="bi bi-info-circle"></i> Controls</div>
+                  <ul class="list-unstyled mb-0 small">
+                    <li><i class="bi bi-mouse"></i> <strong>Orbit:</strong> Click + Drag</li>
+                    <li><i class="bi bi-mouse2"></i> <strong>Pan:</strong> Right-Click + Drag</li>
+                    <li><i class="bi bi-mouse3"></i> <strong>Zoom:</strong> Scroll</li>
+                    <li><i class="bi bi-phone"></i> <strong>Touch:</strong> Pinch to Zoom</li>
+                  </ul>
+                </div>
               </model-viewer>
             {% else %}
               <div class="d-flex align-items-center justify-content-center h-100">
@@ -314,23 +291,6 @@
               </div>
             {% endif %}
           </div>
-
-        </div>
-        <div class="card-footer">
-          <div class="d-flex justify-content-between align-items-center">
-            <small class="text-muted" x-show="viewMode === '2d'">
-              Legend: 
-              <span class="badge bg-success">🚪 Door</span>
-              <span class="badge bg-info">🪟 Window</span>
-              <span class="badge bg-secondary">📦 Other</span>
-            </small>
-            <small class="text-muted" x-show="viewMode === '2d'">
-              Hover over objects in the left panel to highlight them
-            </small>
-            <small class="text-muted" x-show="viewMode === '3d'">
-              Use mouse to rotate, zoom, and pan the 3D model
-            </small>
-          </div>
         </div>
       </div>
     </div>
@@ -338,40 +298,12 @@
 </div>
 
 <style>
-  .wall-label {
-    font-size: 12px;
-    fill: #666;
-    font-weight: bold;
-  }
-  .kitchen-object.highlighted rect {
-    stroke-width: 3;
-    filter: drop-shadow(0 0 5px rgba(255, 193, 7, 0.8));
-  }
-  
   /* Model-viewer styles */
   model-viewer {
     --progress-bar-color: #0d6efd;
     --progress-bar-height: 4px;
   }
   
-  /* Hide the loading text when model is loaded */
-  model-viewer[loaded] #ar-prompt {
-    display: none;
-  }
-  
-  .progress-bar {
-    display: none !important; /* Hide the progress bar completely to avoid the line */
-  }
-  
-  .update-bar {
-    background-color: #0d6efd;
-    width: 0%;
-    height: 100%;
-    border-radius: 25px;
-    transition: width 0.3s ease;
-  }
-  
-  /* Loading spinner instead of progress bar */
   model-viewer::part(default-progress-bar) {
     display: none;
   }
@@ -381,87 +313,24 @@
 
 <script>
   function kitchenVisualizer() {
-    const kitchenWidth = {{ kitchen.width }};
-    const kitchenLength = {{ kitchen.length }};
-    
-    // Calculate optimal scale for this kitchen size
-    const availableWidth = 700;  // SVG canvas width minus margins
-    const availableHeight = 500; // SVG canvas height minus margins
-    const scaleForWidth = availableWidth / kitchenWidth;
-    const scaleForHeight = availableHeight / kitchenLength;
-    const optimalScale = Math.max(5, Math.min(50, Math.round(Math.min(scaleForWidth, scaleForHeight) * 2) / 2));
-    
-    console.log(`Kitchen ${kitchenWidth}x${kitchenLength} - Auto-scaled to ${optimalScale}x`);
-    
     return {
-      scale: optimalScale,
-      minScale: 5,
-      maxScale: 100,
-      optimalScale: optimalScale,
-      viewMode: '2d',
-      highlightObject: null,
-      offset: {
-        x: 100,
-        y: 80
-      },
-      isPanning: false,
-      panStart: { x: 0, y: 0 },
+      autoRotate: true,
+      modelLoaded: false,
       
-      // Zoom methods
-      zoomIn() {
-        this.scale = Math.min(this.maxScale, this.scale + 2);
-        this.updateVisualization();
-      },
-      
-      zoomOut() {
-        this.scale = Math.max(this.minScale, this.scale - 2);
-        this.updateVisualization();
-      },
-      
-      resetView() {
-        this.scale = this.optimalScale;
-        this.offset = { x: 100, y: 80 };
-        this.updateVisualization();
-      },
-      
-      handleWheel(event) {
-        event.preventDefault();
-        const delta = event.deltaY > 0 ? -1 : 1;
-        this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
-        this.updateVisualization();
-      },
-      
-      // Pan methods
-      startPan(event) {
-        if (this.viewMode === '2d') {
-          this.isPanning = true;
-          this.panStart = {
-            x: event.clientX - this.offset.x,
-            y: event.clientY - this.offset.y
-          };
+      toggleAutoRotate() {
+        this.autoRotate = !this.autoRotate;
+        const modelViewer = document.getElementById('kitchenModel');
+        if (modelViewer) {
+          modelViewer.autoRotate = this.autoRotate;
         }
       },
       
-      doPan(event) {
-        if (this.isPanning && this.viewMode === '2d') {
-          this.offset = {
-            x: event.clientX - this.panStart.x,
-            y: event.clientY - this.panStart.y
-          };
+      resetCamera() {
+        const modelViewer = document.getElementById('kitchenModel');
+        if (modelViewer) {
+          modelViewer.cameraOrbit = '45deg 75deg auto';
+          modelViewer.fieldOfView = '35deg';
         }
-      },
-      
-      endPan() {
-        this.isPanning = false;
-      },
-      
-      updateVisualization() {
-        // This method can be extended for more complex view changes
-        console.log('View updated - Scale:', this.scale.toFixed(1));
-      },
-      
-      switchView() {
-        console.log('Switched to view mode:', this.viewMode);
       }
     }
   }

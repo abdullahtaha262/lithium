@@ -249,16 +249,19 @@ def create_apertures(apertures, walls, dims, wall_props):
         
         if ap['wall_index'] == 0:  # Back wall (at Y=depth, extending outward)
             dims = (ap_width, cutter_thickness, ap_height)
-            loc = (dist_from_start + ap_width/2, depth + wall_thickness/2, height_from_floor + ap_height/2)
-        elif ap['wall_index'] == 1:  # Right wall (at X=width, extending outward)
+            # MIRRORED to match user expectation (viewed from back/rotated)
+            loc = (width - dist_from_start - ap_width/2, depth + wall_thickness/2, height_from_floor + ap_height/2)
+        elif ap['wall_index'] == 1:  # Right wall (at X=width, extending outward) - SWAPPED with Left in mapping
             dims = (cutter_thickness, ap_width, ap_height)
+            # Use direct distance (not mirrored) since walls now go from front to back naturally
             loc = (width + wall_thickness/2, dist_from_start + ap_width/2, height_from_floor + ap_height/2)
         elif ap['wall_index'] == 2:  # Front wall (at Y=0, extending outward)
             dims = (ap_width, cutter_thickness, ap_height)
             loc = (width - dist_from_start - ap_width/2, -wall_thickness/2, height_from_floor + ap_height/2)
-        else:  # Left wall (at X=0, extending outward)
+        else:  # Left wall (at X=0, extending outward) - SWAPPED with Right in mapping
             dims = (cutter_thickness, ap_width, ap_height)
-            loc = (-wall_thickness/2, depth - dist_from_start - ap_width/2, height_from_floor + ap_height/2)
+            # Use direct distance (not mirrored) since walls now go from front to back naturally
+            loc = (-wall_thickness/2, dist_from_start + ap_width/2, height_from_floor + ap_height/2)
         
         bpy.ops.mesh.primitive_cube_add(location=loc)
         cutter = bpy.context.active_object

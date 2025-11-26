@@ -120,6 +120,7 @@ def kitchen_visualizer(request, pk):
     context = {
         'kitchen': kitchen,
         'objects': kitchen.objects.all(),
+        'placed_furniture': kitchen.placed_furniture.all(),
     }
     
     return render(request, 'kitchen/kitchen_visualizer.html', context)
